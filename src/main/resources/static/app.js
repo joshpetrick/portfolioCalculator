@@ -82,7 +82,7 @@ function renderCharts() {
 function renderForms() {
     $('holdingForm').innerHTML = `
         ${field('ticker', 'Ticker symbol', 'text', { required: true, pattern: '[A-Za-z.]{1,10}', hint: 'Required. Example: VTI, SCHD, MSFT.' })}
-        ${field('name', 'Company / fund name', 'text', { required: true, hint: 'Required. Lookup can fill this after ticker entry.' })}
+        ${field('name', 'Display name', 'text', { hint: 'Optional. Lookup can fill this; blank entries use the ticker.' })}
         ${field('shares', 'Shares owned', 'number', { required: true, min: 0.000001, hint: 'Required. Fractional shares are supported.' })}
         ${field('currentPrice', 'Current share price', 'number', { min: 0, hint: 'Lookup fills this from public quote data; editable.' })}
         ${field('dividendAmount', 'Dividend per payment', 'number', { min: 0, hint: 'Lookup estimates this from annual dividend data.' })}
@@ -119,7 +119,7 @@ function field(name, label, type, options = {}) {
 }
 
 function fieldLabel(_name, label) {
-    return `${label}${['Ticker symbol', 'Company / fund name', 'Shares owned'].includes(label) ? ' <span class="required">*</span>' : ''}`;
+    return `${label}${['Ticker symbol', 'Shares owned'].includes(label) ? ' <span class="required">*</span>' : ''}`;
 }
 
 async function lookupQuote() {
@@ -183,6 +183,7 @@ $('holdingForm').onsubmit = async event => {
     if (!form.reportValidity()) return;
     const data = new FormData(form);
     const holding = Object.fromEntries(data);
+    if (!holding.name || !holding.name.trim()) holding.name = holding.ticker;
     ['shares', 'currentPrice', 'dividendAmount', 'expectedAnnualPriceGrowthPercent', 'expectedAnnualDividendGrowthPercent']
         .forEach(k => holding[k] = Number(holding[k] || 0));
     holding.reinvestDividends = data.has('reinvestDividends');

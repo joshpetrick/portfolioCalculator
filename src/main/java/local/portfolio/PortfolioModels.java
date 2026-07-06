@@ -11,7 +11,7 @@ public class PortfolioModels {
     public record Holding(
             String id,
             @NotBlank @Pattern(regexp = "^[A-Za-z.]{1,10}$") String ticker,
-            @NotBlank String name,
+            String name,
             @Positive double shares,
             @PositiveOrZero double currentPrice,
             @PositiveOrZero double dividendAmount,
@@ -19,7 +19,11 @@ public class PortfolioModels {
             boolean reinvestDividends,
             Double expectedAnnualPriceGrowthPercent,
             Double expectedAnnualDividendGrowthPercent) {
-        public Holding withId(String newId) { return new Holding(newId, ticker.toUpperCase(Locale.US), name, shares, currentPrice, dividendAmount, dividendFrequency, reinvestDividends, expectedAnnualPriceGrowthPercent, expectedAnnualDividendGrowthPercent); }
+        public Holding withId(String newId) {
+            String normalizedTicker = ticker.toUpperCase(Locale.US);
+            String displayName = name == null || name.isBlank() ? normalizedTicker : name;
+            return new Holding(newId, normalizedTicker, displayName, shares, currentPrice, dividendAmount, dividendFrequency, reinvestDividends, expectedAnnualPriceGrowthPercent, expectedAnnualDividendGrowthPercent);
+        }
     }
 
     public record Assumptions(

@@ -7,13 +7,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="dark">
 <header>
     <div>
         <h1>Portfolio Forecaster</h1>
         <p>Local dividend, contribution, and RSU simulator</p>
     </div>
-    <button id="theme" type="button">🌙 Dark mode</button>
+    <button id="theme" type="button">☀️ Toggle theme</button>
 </header>
 <main>
     <section class="cards" id="dashboard"></section>
@@ -38,7 +38,7 @@
                 <h2>Add to portfolio</h2>
                 <span class="required-note">* required</span>
             </div>
-            <p class="muted">Enter ticker, company/name, and shares. Use lookup to fill current market price and dividend details from public market data, then click <strong>Add to portfolio</strong>.</p>
+            <p class="muted">Enter a ticker and the number of shares you own. Use lookup to fill current market price, display name, and dividend details from public market data, then click <strong>Add to portfolio</strong>.</p>
             <form id="holdingForm" class="form"></form>
             <div id="lookupStatus" class="status" role="status"></div>
         </div>

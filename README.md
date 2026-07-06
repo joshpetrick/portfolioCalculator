@@ -5,7 +5,7 @@ A local-first Spring Boot web app for tracking stock holdings and forecasting a 
 ## Features
 
 - Dashboard with projected portfolio value, dividends, share count, contributions, RSUs, and combined net value.
-- Add, edit, delete, and inline-edit holdings. Ticker, company/name, and shares are required before adding a holding.
+- Add, edit, delete, and inline-edit holdings. Ticker and shares are required before adding a holding; the display name is optional and can be filled by lookup.
 - Dividend frequency support: monthly, quarterly, semiannual, annual, and none.
 - Per-holding price growth and dividend growth assumptions.
 - Global paycheck and yearly contribution assumptions.
@@ -14,7 +14,7 @@ A local-first Spring Boot web app for tracking stock holdings and forecasting a 
 - Charts for portfolio value, dividend income, contributions, growth, RSUs, and combined value.
 - Public market-data lookup can fill current share price and estimated dividend information after you enter a ticker.
 - CSV export for holdings and projection results.
-- Dark mode and seed/example data.
+- Dark mode is enabled by default, plus seed/example data.
 - Local JSON persistence at `~/.portfolio-calculator/portfolio-data.json`.
 
 ## Requirements
