@@ -34,8 +34,22 @@ async function refreshProjection() {
     $('slider').value = years;
     $('projectionCsv').href = `/api/export/projection.csv?years=${years}`;
     projection = await api(`/api/projection?years=${years}&scenario=${$('scenario').value}`);
+    renderCurrentDashboard();
     renderDashboard();
     renderCharts();
+}
+
+
+function renderCurrentDashboard() {
+    const rsu = normalizedRsu();
+    const currentPortfolioValue = state.holdings.reduce((sum, h) => sum + h.shares * h.currentPrice, 0);
+    const currentRsuValue = rsu.includeInProjection ? rsu.currentShares * rsu.currentSharePrice : 0;
+    const currentYearlyDividend = state.holdings.reduce((sum, h) => sum + h.shares * h.dividendAmount * paymentsPerYear(h.dividendFrequency), 0);
+    $('currentDashboard').innerHTML = [
+        ['Current stock portfolio', money(currentPortfolioValue)],
+        ['Current RSU value', money(currentRsuValue)],
+        ['Current yearly dividends', money(currentYearlyDividend)]
+    ].map(item => `<div class="card"><span class="muted">${item[0]}</span><br><b>${item[1]}</b></div>`).join('');
 }
 
 function renderDashboard() {
@@ -51,7 +65,7 @@ function renderDashboard() {
 
     $('dividendSummary').innerHTML = `Projected cumulative income: <b>${money(s.dividendIncome)}</b><br>Current annual run-rate estimate: <b>${money(state.holdings.reduce((sum, h) => sum + h.shares * h.dividendAmount * paymentsPerYear(h.dividendFrequency), 0))}</b>`;
     const rsu = normalizedRsu();
-    $('rsuSummary').innerHTML = `Ticker: <b>${rsu.ticker || 'Not set'}</b><br>Current RSU shares: <b>${rsu.currentShares}</b><br>Estimated annual RSU shares: <b>${rsu.annualGrantShares}</b><br>Share price: <b>${money(rsu.currentSharePrice)}</b><br>Growth: <b>${rsu.expectedAnnualGrowthPercent}%</b><br>Included: <b>${rsu.includeInProjection ? 'Yes' : 'No'}</b>`;
+    $('rsuSummary').innerHTML = `Ticker: <b>${rsu.ticker || 'Not set'}</b><br>Current RSU shares: <b>${rsu.currentShares}</b><br>Estimated annual RSU value: <b>${money(rsu.annualGrantValue)}</b><br>Share price: <b>${money(rsu.currentSharePrice)}</b><br>Growth: <b>${rsu.expectedAnnualGrowthPercent}%</b><br>Included: <b>${rsu.includeInProjection ? 'Yes' : 'No'}</b>`;
 }
 
 
@@ -61,7 +75,7 @@ function normalizedRsu() {
         ticker: rsu.ticker || '',
         currentSharePrice: Number(rsu.currentSharePrice || 0),
         currentShares: Number(rsu.currentShares || 0),
-        annualGrantShares: Number(rsu.annualGrantShares || 0),
+        annualGrantValue: Number(rsu.annualGrantValue || 0),
         expectedAnnualGrowthPercent: Number(rsu.expectedAnnualGrowthPercent || 0),
         includeInProjection: rsu.includeInProjection !== false
     };
@@ -137,7 +151,7 @@ function renderForms() {
         <label>RSU ticker<input name="ticker" pattern="[A-Za-z.]{0,10}" value="${rsu.ticker}" placeholder="MSFT"></label>
         <label>Current RSU share price<input name="currentSharePrice" type="number" step="any" min="0" value="${rsu.currentSharePrice}"></label>
         <label>Existing RSU shares<input name="currentShares" type="number" step="any" min="0" value="${rsu.currentShares}"></label>
-        <label>Estimated RSU shares per year<input name="annualGrantShares" type="number" step="any" min="0" value="${rsu.annualGrantShares}"></label>
+        <label>Estimated RSU value per year<input name="annualGrantValue" type="number" step="any" min="0" value="${rsu.annualGrantValue}"></label>
         <label>RSU annual growth %<input name="expectedAnnualGrowthPercent" type="number" step="any" value="${rsu.expectedAnnualGrowthPercent}"></label>
         <label><input name="includeInProjection" type="checkbox" ${rsu.includeInProjection ? 'checked' : ''}> Include RSUs</label>
         <div class="form-actions"><button id="lookupRsuQuote" class="secondary" type="button">Lookup RSU stock price</button><button type="submit">Save RSUs</button></div>`;
@@ -273,7 +287,7 @@ async function saveScenario() {
             ticker: (rsuData.get('ticker') || '').toUpperCase(),
             currentSharePrice: +rsuData.get('currentSharePrice'),
             currentShares: +rsuData.get('currentShares'),
-            annualGrantShares: +rsuData.get('annualGrantShares'),
+            annualGrantValue: +rsuData.get('annualGrantValue'),
             expectedAnnualGrowthPercent: +rsuData.get('expectedAnnualGrowthPercent'),
             includeInProjection: rsuData.has('includeInProjection')
         }

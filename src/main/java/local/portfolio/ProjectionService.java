@@ -49,7 +49,7 @@ public class ProjectionService {
 
             if (scenario.rsuSettings().includeInProjection()) {
                 rsus.price *= Math.pow(1 + rsus.growth / 100.0, 1.0 / 12.0);
-                if (month % 12 == 0) rsus.shares += scenario.rsuSettings().annualGrantShares();
+                if (month % 12 == 0) rsus.shares += rsus.price > 0 ? scenario.rsuSettings().annualGrantValue() / rsus.price : 0;
             }
 
             double portfolio = holdings.stream().mapToDouble(HoldingRuntime::value).sum();
@@ -77,7 +77,7 @@ public class ProjectionService {
                 rsu.ticker(),
                 rsu.currentSharePrice(),
                 rsu.currentShares(),
-                rsu.annualGrantShares(),
+                rsu.annualGrantValue(),
                 rsu.expectedAnnualGrowthPercent() + priceBump,
                 rsu.includeInProjection()
         ));

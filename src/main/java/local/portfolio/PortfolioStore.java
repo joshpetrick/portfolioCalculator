@@ -42,8 +42,8 @@ public class PortfolioStore {
                 new Holding(UUID.randomUUID().toString(), "SCHD", "Schwab U.S. Dividend Equity ETF", 80, 78, 0.74, DividendFrequency.QUARTERLY, true, 6.0, 6.0),
                 new Holding(UUID.randomUUID().toString(), "MSFT", "Microsoft", 10, 420, 0.75, DividendFrequency.QUARTERLY, false, 8.0, 8.0)
         );
-        var base = new Scenario(UUID.randomUUID().toString(), "Base plan", new Assumptions(350, PaycheckFrequency.BIWEEKLY, 6500, 1, true), new RsuSettings("MSFT", 420, 15, 25, 5.0, true));
-        var conservative = new Scenario(UUID.randomUUID().toString(), "Conservative", new Assumptions(250, PaycheckFrequency.BIWEEKLY, 3000, 1, true), new RsuSettings("MSFT", 420, 10, 15, 2.0, true));
+        var base = new Scenario(UUID.randomUUID().toString(), "Base plan", new Assumptions(350, PaycheckFrequency.BIWEEKLY, 6500, 1, true), new RsuSettings("MSFT", 420, 15, 20000, 5.0, true));
+        var conservative = new Scenario(UUID.randomUUID().toString(), "Conservative", new Assumptions(250, PaycheckFrequency.BIWEEKLY, 3000, 1, true), new RsuSettings("MSFT", 420, 10, 12000, 2.0, true));
         return new PortfolioState(new ArrayList<>(holdings), base, new ArrayList<>(List.of(base, conservative)));
     }
 }

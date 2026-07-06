@@ -37,12 +37,12 @@ public class PortfolioModels {
             String ticker,
             @PositiveOrZero double currentSharePrice,
             @PositiveOrZero double currentShares,
-            @PositiveOrZero double annualGrantShares,
+            @PositiveOrZero double annualGrantValue,
             double expectedAnnualGrowthPercent,
             boolean includeInProjection) {
         public RsuSettings normalized() {
             String normalizedTicker = ticker == null || ticker.isBlank() ? "" : ticker.toUpperCase(Locale.US);
-            return new RsuSettings(normalizedTicker, currentSharePrice, currentShares, annualGrantShares, expectedAnnualGrowthPercent, includeInProjection);
+            return new RsuSettings(normalizedTicker, currentSharePrice, currentShares, annualGrantValue, expectedAnnualGrowthPercent, includeInProjection);
         }
     }
 
