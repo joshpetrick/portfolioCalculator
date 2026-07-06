@@ -33,7 +33,7 @@ public class PortfolioController {
     }
 
     @GetMapping("/market-data/{ticker}")
-    ResponseEntity<?> marketData(@PathVariable String ticker) {
+    ResponseEntity<?> marketData(@PathVariable("ticker") String ticker) {
         try {
             return ResponseEntity.ok(marketData.lookup(ticker));
         } catch (IllegalArgumentException e) {
@@ -52,7 +52,7 @@ public class PortfolioController {
     }
 
     @PutMapping("/holdings/{id}")
-    PortfolioState updateHolding(@PathVariable String id, @Valid @RequestBody Holding holding) {
+    PortfolioState updateHolding(@PathVariable("id") String id, @Valid @RequestBody Holding holding) {
         var state = store.load();
         var holdings = state.holdings().stream()
                 .map(h -> h.id().equals(id) ? holding.withId(id) : h)
@@ -61,7 +61,7 @@ public class PortfolioController {
     }
 
     @DeleteMapping("/holdings/{id}")
-    PortfolioState deleteHolding(@PathVariable String id) {
+    PortfolioState deleteHolding(@PathVariable("id") String id) {
         var state = store.load();
         var holdings = state.holdings().stream()
                 .filter(h -> !h.id().equals(id))
@@ -95,8 +95,8 @@ public class PortfolioController {
     }
 
     @GetMapping("/projection")
-    ProjectionResult projection(@RequestParam(defaultValue = "10") int years,
-                                @RequestParam(defaultValue = "base") String scenario) {
+    ProjectionResult projection(@RequestParam(name = "years", defaultValue = "10") int years,
+                                @RequestParam(name = "scenario", defaultValue = "base") String scenario) {
         return projections.project(store.load(), years, scenario);
     }
 
@@ -110,7 +110,7 @@ public class PortfolioController {
     }
 
     @GetMapping(value = "/export/projection.csv", produces = "text/csv")
-    ResponseEntity<String> exportProjection(@RequestParam(defaultValue = "10") int years) {
+    ResponseEntity<String> exportProjection(@RequestParam(name = "years", defaultValue = "10") int years) {
         String header = "Month,Year,Portfolio Value,Dividend Income,Share Count,Contributions,RSU Value,Combined Value,Growth Value\n";
         String rows = projections.project(store.load(), years, "base").points().stream()
                 .map(p -> csv(p.month(), p.year(), p.portfolioValue(), p.dividendIncome(), p.shareCount(), p.contributions(), p.rsuValue(), p.combinedValue(), p.growthValue()))
