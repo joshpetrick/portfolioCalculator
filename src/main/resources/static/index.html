@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Portfolio Forecaster</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark">
+<header>
+    <div>
+        <h1>Portfolio Forecaster</h1>
+        <p>Local dividend, contribution, and RSU simulator</p>
+    </div>
+    <button id="theme" type="button">☀️ Toggle theme</button>
+</header>
+<main>
+    <nav id="tabBar" class="tabs"></nav>
+    <section id="accountTab" class="panel hidden"></section>
+    <div id="mainOverview">
+    <section class="cards" id="currentDashboard"></section>
+    <section class="cards" id="dashboard"></section>
+
+    <section class="panel">
+        <div class="section-title">
+            <h2>Projection chart</h2>
+            <div>
+                <select id="years"><option>1</option><option>3</option><option selected>5</option><option>10</option><option>20</option></select>
+                years
+                <select id="scenario"><option>base</option><option>conservative</option><option>aggressive</option></select>
+            </div>
+        </div>
+        <input type="range" id="slider" min="1" max="20" value="5">
+        <canvas id="valueChart"></canvas>
+        <canvas id="incomeChart"></canvas>
+    </section>
+
+    <section class="grid">
+        <div class="panel">
+            <div class="section-title">
+                <h2>Add to portfolio</h2>
+                <span class="required-note">* required</span>
+            </div>
+            <p class="muted">Enter a ticker and the number of shares you own. Use lookup to fill current market price, display name, and dividend details from public market data, then click <strong>Add to portfolio</strong>.</p>
+            <form id="holdingForm" class="form"></form>
+            <div id="lookupStatus" class="status" role="status"></div>
+        </div>
+        <div class="panel">
+            <h2>Scenario</h2>
+            <form id="scenarioForm" class="form"></form>
+            <button id="duplicate" type="button">Duplicate scenario</button>
+        </div>
+        <div class="panel">
+            <h2>Paycheck contributions</h2>
+            <p class="muted">Contributions are invested evenly across every stock in your portfolio, including dividend-paying stocks.</p>
+            <form id="contributionForm" class="form"></form>
+        </div>
+        <div class="panel">
+            <h2>RSU stock grants</h2>
+            <p class="muted">Use one stock picker for existing RSU shares and the estimated dollar value granted per year.</p>
+            <form id="rsuForm" class="form"></form>
+            <div id="rsuLookupStatus" class="status" role="status"></div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="section-title">
+            <h2>Holdings table</h2>
+            <div><a href="/api/export/holdings.csv">Export holdings CSV</a> · <a id="projectionCsv" href="/api/export/projection.csv?years=5">Export projection CSV</a></div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Price</th><th>Dividend</th><th>Freq</th><th>Reinvest</th><th>Growth</th><th></th></tr></thead>
+                <tbody id="holdings"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="grid">
+        <div class="panel"><h2>Dividend income summary</h2><div id="dividendSummary"></div></div>
+        <div class="panel"><h2>RSU summary</h2><div id="rsuSummary"></div></div>
+        <div class="panel"><h2>Other investment accounts</h2><form id="accountForm" class="form"></form><div id="accountsList"></div></div>
+    </section>
+    </div>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
