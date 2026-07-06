@@ -58,11 +58,12 @@ function accountsCurrentValue() {
 
 function renderTabs(active = 'overview') {
     const accountTabs = (state.accounts || []).map(account => `<button type="button" data-tab="${account.id}" class="${active === account.id ? 'active' : ''}">${account.name}</button>`).join('');
-    $('tabBar').innerHTML = `<button type="button" data-tab="overview" class="${active === 'overview' ? 'active' : ''}">Overview</button><button type="button" data-tab="stock" class="${active === 'stock' ? 'active' : ''}">Funny money + company</button>${accountTabs}`;
+    $('tabBar').innerHTML = `<button type="button" data-tab="overview" class="${active === 'overview' ? 'active' : ''}">Overview</button><button type="button" data-tab="create" class="secondary">＋</button><button type="button" data-tab="stock" class="${active === 'stock' ? 'active' : ''}">Funny money + company</button>${accountTabs}`;
     document.querySelectorAll('#tabBar button').forEach(button => button.onclick = () => showTab(button.dataset.tab));
 }
 
 function showTab(tab) {
+    if (tab === 'create') { openTabWizard(); return; }
     renderTabs(tab);
     if (tab === 'overview' || tab === 'stock') {
         $('mainOverview').classList.remove('hidden');
@@ -195,15 +196,6 @@ function renderForms() {
         <label>RSU annual growth %<input name="expectedAnnualGrowthPercent" type="number" step="any" value="${rsu.expectedAnnualGrowthPercent}"></label>
         <label><input name="includeInProjection" type="checkbox" ${rsu.includeInProjection ? 'checked' : ''}> Include RSUs</label>
         <div class="form-actions"><button id="lookupRsuQuote" class="secondary" type="button">Lookup RSU stock price</button><button type="submit">Save RSUs</button></div>`;
-
-    $('accountForm').innerHTML = `
-        <label>Name<input name="name" required placeholder="401k"></label>
-        <label>Category<input name="category" placeholder="Retirement / Asset / Income"></label>
-        <label>Type<select name="type"><option>Portfolio</option><option>Asset</option><option>Income</option><option>Retirement</option><option>HSA</option></select></label>
-        <label>Current value<input name="currentValue" type="number" step="any" min="0" value="0"></label>
-        <label>Annual contribution<input name="annualContribution" type="number" step="any" min="0" value="0"></label>
-        <label>Expected growth %<input name="expectedAnnualGrowthPercent" type="number" step="any" value="6"></label>
-        <button type="submit">Add account tab</button>`;
 
     $('lookupQuote').onclick = lookupQuote;
     $('lookupRsuQuote').onclick = lookupRsuQuote;
@@ -401,7 +393,16 @@ async function deleteAccountHolding(accountId, holdingId) {
     await refreshProjection();
 }
 
-$('accountForm').onsubmit = async event => {
+function openTabWizard() {
+    $('tabWizard').classList.remove('hidden');
+}
+
+function closeTabWizard() {
+    $('tabWizard').classList.add('hidden');
+}
+
+$('closeTabWizard').onclick = closeTabWizard;
+$('tabWizardForm').onsubmit = async event => {
     event.preventDefault();
     const data = new FormData(event.target);
     const account = {
@@ -414,8 +415,8 @@ $('accountForm').onsubmit = async event => {
     };
     state = await api('/api/accounts', { method: 'POST', body: JSON.stringify(account) });
     event.target.reset();
+    closeTabWizard();
     renderTabs();
-    showTab('stock');
     renderAccounts();
     await refreshProjection();
 };

@@ -80,10 +80,28 @@
     <section class="grid detail-section" id="summaryDetails">
         <div class="panel"><h2>Dividend income summary</h2><div id="dividendSummary"></div></div>
         <div class="panel"><h2>RSU summary</h2><div id="rsuSummary"></div></div>
-        <div class="panel"><h2>Other investment accounts</h2><form id="accountForm" class="form"></form><div id="accountsList"></div></div>
+        <div class="panel"><h2>Tabs</h2><p class="muted">Use the + tab next to Overview to create Stock, Income, or Asset tabs.</p><div id="accountsList"></div></div>
     </section>
     </div>
 </main>
+<div id="tabWizard" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="tabWizardTitle">
+    <div class="modal-card">
+        <div class="section-title">
+            <h2 id="tabWizardTitle">Create new tab</h2>
+            <button id="closeTabWizard" type="button" class="secondary">Cancel</button>
+        </div>
+        <form id="tabWizardForm" class="form">
+            <label>Tab name<input name="name" required placeholder="Funny money / Employer stock / 401k"></label>
+            <label>Entity type<select name="type" required><option>Stock</option><option>Income</option><option>Asset</option></select></label>
+            <label>Category<input name="category" placeholder="Optional category"></label>
+            <label>Current value<input name="currentValue" type="number" step="any" min="0" value="0"></label>
+            <label>Annual contribution or income<input name="annualContribution" type="number" step="any" min="0" value="0"></label>
+            <label>Expected annual growth %<input name="expectedAnnualGrowthPercent" type="number" step="any" value="6"></label>
+            <button type="submit">Create tab</button>
+        </form>
+    </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>

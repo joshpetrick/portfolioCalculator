@@ -4,14 +4,14 @@ A local-first Spring Boot web app for tracking stock holdings and forecasting a 
 
 ## Features
 
-- Dynamic overview tabs for the whole investment picture plus named tabs for portfolios, employer stock, 401k, HSA, assets such as houses/vehicles, income, or future account types.
+- Dynamic overview tabs for the whole investment picture plus a + tab wizard for creating named Stock, Income, or Asset tabs.
 - View-only overview dashboard with agnostic total overall current value and total overall projected value; only projection time horizon and strategy are changed there, while all data entry happens inside individual tabs.
 - Add, edit, delete, and inline-edit holdings. Ticker and shares are required before adding a holding; the display name is optional and can be filled by lookup.
 - Dividend frequency support: monthly, quarterly, semiannual, annual, and none.
 - Per-holding price growth and dividend growth assumptions.
 - Paycheck and yearly contribution assumptions in a dedicated section; projected contributions are invested evenly across all portfolio holdings, including dividend stocks.
 - RSU forecast section with a stock-symbol picker, current RSU share count, estimated annual RSU value, share price lookup, annual vesting, and optional inclusion.
-- Add/edit/delete additional tabs with a consistent layout: name, category, type, current value, annual contribution or income, expected growth, ticker-based stock holdings, dividend details, and ticker lookup.
+- Use the + tab wizard to create additional tabs with name, entity type, optional category, current value, annual contribution or income, expected growth, ticker-based stock holdings, dividend details, and ticker lookup.
 - Projection slider for 1-20 years plus scenario selector for base, conservative, and aggressive views.
 - Charts for portfolio value, dividend income, contributions, growth, RSUs, and combined value.
 - Public market-data lookup can fill current share price and estimated dividend information after you enter a ticker. The backend calls the external Yahoo Finance chart API (`query1.finance.yahoo.com/v8/finance/chart/{ticker}`), for example `/api/market-data/RTX`.
