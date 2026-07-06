@@ -19,6 +19,8 @@ public class ProjectionService {
                 .toList();
         RsuRuntime rsus = new RsuRuntime(scenario.rsuSettings().normalized(), scenarioGrowthBump);
         List<AccountRuntime> accounts = Optional.ofNullable(state.accounts()).orElse(List.of()).stream()
+                .map(InvestmentAccount::normalized)
+                .filter(InvestmentAccount::includeInOverview)
                 .map(a -> new AccountRuntime(a, scenarioGrowthBump))
                 .toList();
         List<ProjectionPoint> points = new ArrayList<>();
@@ -56,7 +58,7 @@ public class ProjectionService {
             }
 
             for (AccountRuntime account : accounts) {
-                account.applyMonthlyGrowth();
+                totalDividends += account.applyMonthlyGrowth();
                 account.applyMonthlyContribution();
             }
 
@@ -166,33 +168,40 @@ public class ProjectionService {
     }
 
     static class AccountRuntime {
-        double value, annualContribution, growth;
+        double value, annualContribution, monthlyContribution, yearlyContribution, growth;
+        String type;
         List<HoldingRuntime> holdings;
 
         AccountRuntime(InvestmentAccount account, double scenarioGrowthBump) {
             InvestmentAccount normalized = account.normalized();
             value = normalized.currentValue();
             annualContribution = normalized.annualContribution();
+            monthlyContribution = normalized.monthlyContribution();
+            yearlyContribution = normalized.yearlyContribution();
             growth = normalized.expectedAnnualGrowthPercent() + scenarioGrowthBump;
+            type = normalized.type();
             holdings = normalized.holdings().stream().map(h -> new HoldingRuntime(h, scenarioGrowthBump)).toList();
         }
 
-        void applyMonthlyGrowth() {
+        double applyMonthlyGrowth() {
             value *= Math.pow(1 + growth / 100.0, 1.0 / 12.0);
+            double monthlyDividends = 0;
             for (HoldingRuntime holding : holdings) {
                 holding.price *= Math.pow(1 + holding.priceGrowth / 100.0, 1.0 / 12.0);
                 holding.dividend *= Math.pow(1 + holding.dividendGrowth / 100.0, 1.0 / 12.0);
+                double monthlyDividend = holding.shares * holding.dividend * paymentsPerMonth(holding.frequency);
+                monthlyDividends += monthlyDividend;
                 if (holding.reinvest && holding.price > 0) {
-                    double monthlyDividend = holding.shares * holding.dividend * paymentsPerMonth(holding.frequency);
                     holding.shares += monthlyDividend / holding.price;
                 }
             }
+            return monthlyDividends;
         }
 
         void applyMonthlyContribution() {
-            double monthly = annualContribution / 12.0;
+            double monthly = type.equals("Savings Account") ? monthlyContribution + yearlyContribution / 12.0 : annualContribution / 12.0;
             if (monthly <= 0) return;
-            if (holdings.isEmpty()) {
+            if (holdings.isEmpty() || !type.equals("Investment Account")) {
                 value += monthly;
                 return;
             }

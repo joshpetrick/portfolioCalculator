@@ -44,31 +44,50 @@ async function refreshProjection() {
 
 
 function renderCurrentDashboard() {
-    const rsu = normalizedRsu();
-    const currentPortfolioValue = state.holdings.reduce((sum, h) => sum + h.shares * h.currentPrice, 0);
-    const currentRsuValue = rsu.includeInProjection ? rsu.currentShares * rsu.currentSharePrice : 0;
-    const currentYearlyDividend = state.holdings.reduce((sum, h) => sum + h.shares * h.dividendAmount * paymentsPerYear(h.dividendFrequency), 0);
-    $('currentDashboard').innerHTML = `<div class="card"><span class="muted">Total overall current value</span><br><b>${money(currentPortfolioValue + currentRsuValue + accountsCurrentValue())}</b></div><div class="card"><span class="muted">Current yearly dividends</span><br><b>${money(currentYearlyDividend)}</b></div>`;
+    const currentValue = includedEntities().reduce((sum, entity) => sum + entityCurrentValue(entity), 0);
+    const currentYearlyDividend = currentDividendIncome();
+    $('currentDashboard').innerHTML = `<div class="card"><span class="muted">Total current net worth</span><br><b>${money(currentValue)}</b></div><div class="card"><span class="muted">Current yearly dividends</span><br><b>${money(currentYearlyDividend)}</b></div>`;
 }
 
 
 function accountsCurrentValue() {
-    return (state.accounts || []).reduce((sum, account) => sum + account.currentValue + ((account.holdings || []).reduce((hSum, h) => hSum + h.shares * h.currentPrice, 0)), 0);
+    return includedEntities().reduce((sum, entity) => sum + entityCurrentValue(entity), 0);
+}
+
+function includedEntities() {
+    return (state.accounts || []).filter(entity => entity.includeInOverview !== false);
+}
+
+function entityHoldingsValue(entity) {
+    return (entity.holdings || []).reduce((sum, holding) => sum + Number(holding.shares || 0) * Number(holding.currentPrice || 0), 0);
+}
+
+function entityCurrentValue(entity) {
+    return Number(entity.currentValue || 0) + entityHoldingsValue(entity);
+}
+
+function entityYearlyDividends(entity) {
+    if ((entity.type || 'Investment Account') !== 'Investment Account') return 0;
+    return (entity.holdings || []).reduce((sum, holding) => sum + Number(holding.shares || 0) * Number(holding.dividendAmount || 0) * paymentsPerYear(holding.dividendFrequency), 0);
+}
+
+function currentDividendIncome() {
+    return includedEntities().reduce((sum, entity) => sum + entityYearlyDividends(entity), 0);
 }
 
 function renderTabs(active = 'overview') {
     const accountTabs = (state.accounts || []).map(account => `<button type="button" data-tab="${account.id}" class="${active === account.id ? 'active' : ''}">${account.name}</button>`).join('');
-    $('tabBar').innerHTML = `<button type="button" data-tab="overview" class="${active === 'overview' ? 'active' : ''}">Overview</button><button type="button" data-tab="create" class="secondary">＋</button><button type="button" data-tab="stock" class="${active === 'stock' ? 'active' : ''}">Funny money + company</button>${accountTabs}`;
+    $('tabBar').innerHTML = `<button type="button" data-tab="overview" class="${active === 'overview' ? 'active' : ''}">Overview</button>${accountTabs}<button type="button" data-tab="create" class="secondary">＋</button>`;
     document.querySelectorAll('#tabBar button').forEach(button => button.onclick = () => showTab(button.dataset.tab));
 }
 
 function showTab(tab) {
     if (tab === 'create') { openTabWizard(); return; }
     renderTabs(tab);
-    if (tab === 'overview' || tab === 'stock') {
+    if (tab === 'overview') {
         $('mainOverview').classList.remove('hidden');
         $('accountTab').classList.add('hidden');
-        document.querySelectorAll('.detail-section').forEach(section => section.classList.toggle('hidden', tab === 'overview'));
+        document.querySelectorAll('.detail-section').forEach(section => section.classList.add('hidden'));
         return;
     }
     const account = (state.accounts || []).find(a => a.id === tab);
@@ -79,8 +98,8 @@ function showTab(tab) {
     const holdingRows = holdings.map(h => `<tr><td>${h.ticker}</td><td>${h.name || h.ticker}</td><td>${h.shares}</td><td>${money(h.currentPrice)}</td><td>${money(h.dividendAmount || 0)} / ${h.dividendFrequency || 'NONE'}</td><td>${h.reinvestDividends ? 'Yes' : 'No'}</td><td><button class="danger" onclick="deleteAccountHolding('${account.id}','${h.id}')">Delete</button></td></tr>`).join('');
     const holdingsValue = holdings.reduce((sum,h)=>sum+h.shares*h.currentPrice,0);
     const yearlyDividends = holdings.reduce((sum,h)=>sum+h.shares*(h.dividendAmount||0)*paymentsPerYear(h.dividendFrequency),0);
-    $('accountTab').innerHTML = `<h2>${account.name}</h2><p class="muted">${account.category || ''} · ${account.type || 'Investment account'}</p><div class="cards"><div class="card"><span class="muted">Tab total value</span><br><b>${money(account.currentValue + holdingsValue)}</b></div><div class="card"><span class="muted">Yearly dividends</span><br><b>${money(yearlyDividends)}</b></div><div class="card"><span class="muted">Annual contribution/income</span><br><b>${money(account.annualContribution)}</b></div><div class="card"><span class="muted">Expected growth</span><br><b>${account.expectedAnnualGrowthPercent}%</b></div></div><h3>Add stock to this tab</h3><form id="accountHoldingForm" class="form">${field('ticker', 'Ticker symbol', 'text', { required: true, pattern: '[A-Za-z.]{1,10}' })}${field('name', 'Display name', 'text', {})}${field('shares', 'Shares owned', 'number', { required: true, min: 0.000001 })}${field('currentPrice', 'Current share price', 'number', { min: 0 })}${field('dividendAmount', 'Dividend per payment', 'number', { min: 0 })}<label>Dividend frequency<select name="dividendFrequency">${frequencies.map(x => `<option>${x}</option>`).join('')}</select></label><label><input type="checkbox" name="reinvestDividends" checked> Reinvest dividends</label><button type="button" onclick="lookupAccountHolding('${account.id}')">Lookup ticker</button><button type="submit">Add stock</button></form><table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Price</th><th>Dividend</th><th>Reinvest</th><th></th></tr></thead><tbody>${holdingRows}</tbody></table>`;
-    $('accountHoldingForm').onsubmit = async event => {
+    $('accountTab').innerHTML = `<h2>${account.name}</h2><p class="muted">${account.description || ''} · ${account.type || 'Investment Account'}</p><div class="cards"><div class="card"><span class="muted">Tab total value</span><br><b>${money(account.currentValue + holdingsValue)}</b></div><div class="card"><span class="muted">Yearly dividends</span><br><b>${money(yearlyDividends)}</b></div><div class="card"><span class="muted">Annual contribution/income</span><br><b>${money(account.annualContribution)}</b></div><div class="card"><span class="muted">Expected growth</span><br><b>${account.expectedAnnualGrowthPercent}%</b></div></div><h3>Add stock to this tab</h3><form id="accountHoldingForm" class="form">${field('ticker', 'Ticker symbol', 'text', { required: true, pattern: '[A-Za-z.]{1,10}' })}${field('name', 'Display name', 'text', {})}${field('shares', 'Shares owned', 'number', { required: true, min: 0.000001 })}${field('currentPrice', 'Current share price', 'number', { min: 0 })}${field('dividendAmount', 'Dividend per payment', 'number', { min: 0 })}<label>Dividend frequency<select name="dividendFrequency">${frequencies.map(x => `<option>${x}</option>`).join('')}</select></label><label><input type="checkbox" name="reinvestDividends" checked> Reinvest dividends</label><button type="button" onclick="lookupAccountHolding('${account.id}')">Lookup ticker</button><button type="submit">Add stock</button></form><table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Price</th><th>Dividend</th><th>Reinvest</th><th></th></tr></thead><tbody>${holdingRows}</tbody></table>`;
+    if ($('accountHoldingForm')) $('accountHoldingForm').onsubmit = async event => {
         event.preventDefault();
         const data = new FormData(event.target);
         const holding = Object.fromEntries(data);
@@ -97,15 +116,33 @@ function showTab(tab) {
         showTab(account.id);
         await refreshProjection();
     };
+    if ($('entityDetailsForm')) $('entityDetailsForm').onsubmit = async event => {
+        event.preventDefault();
+        const data = new FormData(event.target);
+        const updated = { ...account, currentValue: +(data.get('currentValue') || account.currentValue), expectedAnnualGrowthPercent: +(data.get('expectedAnnualGrowthPercent') || account.expectedAnnualGrowthPercent), monthlyContribution: +(data.get('monthlyContribution') || account.monthlyContribution || 0), yearlyContribution: +(data.get('yearlyContribution') || account.yearlyContribution || 0), includeInOverview: data.has('includeInOverview') };
+        state = await api(`/api/accounts/${account.id}`, { method: 'PUT', body: JSON.stringify(updated) });
+        renderTabs(account.id); showTab(account.id); await refreshProjection();
+    };
 }
 
 function renderDashboard() {
     const s = projection.summary;
-    $('dashboard').innerHTML = `<div class="card"><span class="muted">Total overall projected value</span><br><b>${money(s.combinedValue)}</b></div><div class="card"><span class="muted">Projected dividend income</span><br><b>${money(s.dividendIncome)}</b></div>`;
-
-    $('dividendSummary').innerHTML = `Projected cumulative income: <b>${money(s.dividendIncome)}</b><br>Current annual run-rate estimate: <b>${money(state.holdings.reduce((sum, h) => sum + h.shares * h.dividendAmount * paymentsPerYear(h.dividendFrequency), 0))}</b>`;
+    $('dashboard').innerHTML = `<div class="card"><span class="muted">Total projected value</span><br><b>${money(s.combinedValue)}</b></div><div class="card"><span class="muted">Projected dividend income</span><br><b>${money(s.dividendIncome)}</b></div>`;
+    $('dividendSummary').innerHTML = `Projected cumulative income: <b>${money(s.dividendIncome)}</b><br>Current annual run-rate estimate: <b>${money(currentDividendIncome())}</b>`;
     const rsu = normalizedRsu();
     $('rsuSummary').innerHTML = `Ticker: <b>${rsu.ticker || 'Not set'}</b><br>Current RSU shares: <b>${rsu.currentShares}</b><br>Estimated annual RSU value: <b>${money(rsu.annualGrantValue)}</b><br>Share price: <b>${money(rsu.currentSharePrice)}</b><br>Growth: <b>${rsu.expectedAnnualGrowthPercent}%</b><br>Included: <b>${rsu.includeInProjection ? 'Yes' : 'No'}</b>`;
+    renderOverviewBreakdowns();
+}
+
+function renderOverviewBreakdowns() {
+    const byType = includedEntities().reduce((acc, entity) => {
+        const type = entity.type || 'Investment Account';
+        acc[type] = (acc[type] || 0) + entityCurrentValue(entity);
+        return acc;
+    }, {});
+    const entityRows = includedEntities().map(entity => `<tr><td>${entity.name}</td><td>${entity.type || 'Investment Account'}</td><td>${money(entityCurrentValue(entity))}</td><td>${money(entityYearlyDividends(entity))}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Create an entity with the + tab to start tracking wealth.</td></tr>';
+    const typeRows = Object.entries(byType).map(([type, value]) => `<tr><td>${type}</td><td>${money(value)}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">No included entities yet.</td></tr>';
+    $('overviewBreakdowns').innerHTML = `<div class="panel"><h2>Breakdown by entity</h2><table><thead><tr><th>Entity</th><th>Type</th><th>Current value</th><th>Yearly dividends</th></tr></thead><tbody>${entityRows}</tbody></table></div><div class="panel"><h2>Breakdown by type</h2><table><thead><tr><th>Type</th><th>Current value</th></tr></thead><tbody>${typeRows}</tbody></table></div>`;
 }
 
 
@@ -305,22 +342,31 @@ function renderAccounts() {
 async function editAccount(id) {
     const account = (state.accounts || []).find(a => a.id === id);
     if (!account) return;
-    const name = prompt('Account name', account.name) || account.name;
-    const currentValue = Number(prompt('Current value', account.currentValue) || account.currentValue);
-    const annualContribution = Number(prompt('Annual contribution/income', account.annualContribution) || account.annualContribution);
-    const expectedAnnualGrowthPercent = Number(prompt('Expected annual growth %', account.expectedAnnualGrowthPercent) || account.expectedAnnualGrowthPercent);
-    state = await api(`/api/accounts/${id}`, { method: 'PUT', body: JSON.stringify({ ...account, name, currentValue, annualContribution, expectedAnnualGrowthPercent }) });
-    renderTabs();
-    showTab('stock');
+    const name = prompt('Entity name', account.name);
+    if (name === null || !name.trim()) return;
+    const description = prompt('Description', account.description || '');
+    if (description === null) return;
+    const type = prompt('Entity type: Investment Account, Asset, or Savings Account', account.type || 'Investment Account');
+    if (type === null) return;
+    const allowed = ['Investment Account', 'Asset', 'Savings Account'];
+    const normalizedType = allowed.includes(type) ? type : account.type || 'Investment Account';
+    const includeText = prompt('Include in Overview? yes/no', account.includeInOverview === false ? 'no' : 'yes');
+    if (includeText === null) return;
+    const includeInOverview = !['no', 'false', '0'].includes(includeText.trim().toLowerCase());
+    state = await api(`/api/accounts/${id}`, { method: 'PUT', body: JSON.stringify({ ...account, name: name.trim(), description, type: normalizedType, includeInOverview }) });
+    renderTabs(id);
     renderAccounts();
+    showTab(id);
     await refreshProjection();
 }
 
 async function deleteAccount(id) {
+    const account = (state.accounts || []).find(a => a.id === id);
+    if (!account || !confirm(`Delete ${account.name}? This removes the entity and its holdings.`)) return;
     state = await api(`/api/accounts/${id}`, { method: 'DELETE' });
-    renderTabs();
-    showTab('stock');
+    renderTabs('overview');
     renderAccounts();
+    showTab('overview');
     await refreshProjection();
 }
 
@@ -404,21 +450,31 @@ function closeTabWizard() {
 $('closeTabWizard').onclick = closeTabWizard;
 $('tabWizardForm').onsubmit = async event => {
     event.preventDefault();
-    const data = new FormData(event.target);
+    const form = event.target;
+    if (!form.reportValidity()) return;
+    const data = new FormData(form);
+    const beforeIds = new Set((state.accounts || []).map(account => account.id));
     const account = {
-        name: data.get('name'),
-        category: data.get('category'),
+        name: (data.get('name') || '').trim(),
+        description: data.get('description') || '',
         type: data.get('type'),
-        currentValue: +data.get('currentValue'),
-        annualContribution: +data.get('annualContribution'),
-        expectedAnnualGrowthPercent: +data.get('expectedAnnualGrowthPercent')
+        includeInOverview: true,
+        currentValue: 0,
+        annualContribution: 0,
+        monthlyContribution: 0,
+        yearlyContribution: 0,
+        expectedAnnualGrowthPercent: 0,
+        holdings: []
     };
+    if (!account.name || !account.type) return;
     state = await api('/api/accounts', { method: 'POST', body: JSON.stringify(account) });
-    event.target.reset();
+    const created = (state.accounts || []).find(entity => !beforeIds.has(entity.id));
+    form.reset();
     closeTabWizard();
-    renderTabs();
+    renderTabs(created?.id || 'overview');
     renderAccounts();
     await refreshProjection();
+    showTab(created?.id || 'overview');
 };
 
 $('scenarioForm').onsubmit = async event => { event.preventDefault(); await saveScenario(); };
@@ -432,3 +488,87 @@ $('theme').onclick = () => document.body.classList.toggle('dark');
 $('duplicate').onclick = async () => { state = await api('/api/scenario/duplicate', { method: 'POST' }); renderForms(); renderTabs(); renderAccounts(); await refreshProjection(); };
 
 load();
+
+// Wealth Assessment entity page override. Kept at the end so it supersedes the earlier MVP tab renderer.
+function projectedEntityValue(entity) {
+    const years = Number($('years').value || 5);
+    const growth = Number(entity.expectedAnnualGrowthPercent || 0) / 100;
+    let value = entityCurrentValue(entity);
+    for (let year = 0; year < years; year++) {
+        if ((entity.type || 'Investment Account') === 'Savings Account') value += Number(entity.monthlyContribution || 0) * 12 + Number(entity.yearlyContribution || 0);
+        if ((entity.type || 'Investment Account') === 'Investment Account') value += Number(entity.annualContribution || 0);
+        value *= (1 + growth);
+    }
+    return value;
+}
+
+function showTab(tab) {
+    if (tab === 'create') { openTabWizard(); return; }
+    renderTabs(tab);
+    if (tab === 'overview') {
+        $('mainOverview').classList.remove('hidden');
+        $('accountTab').classList.add('hidden');
+        document.querySelectorAll('.detail-section').forEach(section => section.classList.add('hidden'));
+        return;
+    }
+    const entity = (state.accounts || []).find(a => a.id === tab);
+    if (!entity) return;
+    const type = entity.type || 'Investment Account';
+    const yearlyDividends = entityYearlyDividends(entity);
+    const currentValue = entityCurrentValue(entity);
+    $('mainOverview').classList.add('hidden');
+    $('accountTab').classList.remove('hidden');
+
+    const header = `<div class="entity-header"><div><h2>${entity.name}</h2><p class="muted">${entity.description || 'No description yet.'}</p></div><div class="entity-actions"><span class="badge">${type}</span><button type="button" onclick="editAccount('${entity.id}')">Edit entity</button><button type="button" class="danger" onclick="deleteAccount('${entity.id}')">Delete entity</button></div></div>`;
+    const cards = `<section class="cards"><div class="card"><span class="muted">Current value</span><br><b>${money(currentValue)}</b></div><div class="card"><span class="muted">Projected value</span><br><b>${money(projectedEntityValue(entity))}</b></div><div class="card"><span class="muted">Annual dividends / income</span><br><b>${money(type === 'Investment Account' ? yearlyDividends : (entity.annualContribution || entity.yearlyContribution || 0))}</b></div><div class="card"><span class="muted">Expected growth / return</span><br><b>${entity.expectedAnnualGrowthPercent || 0}%</b></div></section>`;
+
+    if (type === 'Investment Account') {
+        const holdings = entity.holdings || [];
+        const rows = holdings.map(h => `<tr><td>${h.ticker}</td><td>${h.name || h.ticker}</td><td>${h.shares}</td><td>${money(h.currentPrice)}</td><td>${money(h.shares * h.currentPrice)}</td><td>${money(h.dividendAmount || 0)}</td><td>${h.dividendFrequency || 'NONE'}</td><td>${h.reinvestDividends ? 'Yes' : 'No'}</td><td><button class="danger" onclick="deleteAccountHolding('${entity.id}','${h.id}')">Delete</button></td></tr>`).join('') || '<tr><td colspan="9" class="muted">No holdings yet. Add a ticker above.</td></tr>';
+        $('accountTab').innerHTML = header + cards + `<div class="panel"><h3>Investment Account Details</h3><form id="entityDetailsForm" class="form"><label>Expected annual account growth %<input name="expectedAnnualGrowthPercent" type="number" step="any" value="${entity.expectedAnnualGrowthPercent || 0}"></label><label>Annual contribution amount<input name="annualContribution" type="number" step="any" min="0" value="${entity.annualContribution || 0}"></label><label><input name="includeInOverview" type="checkbox" ${entity.includeInOverview !== false ? 'checked' : ''}> Include in Overview</label><button>Save account settings</button></form></div><div class="panel"><h3>Add Holding</h3><p class="muted">Use lookup to populate display name, current price, and dividend details. Enter shares manually.</p><form id="accountHoldingForm" class="form">${field('ticker', 'Ticker symbol', 'text', { required: true, pattern: '[A-Za-z.]{1,10}' })}${field('name', 'Display name', 'text', {})}${field('shares', 'Shares owned', 'number', { required: true, min: 0.000001 })}${field('currentPrice', 'Current share price', 'number', { min: 0 })}${field('dividendAmount', 'Dividend per payment', 'number', { min: 0 })}<label>Dividend frequency<select name="dividendFrequency">${frequencies.map(x => `<option>${x}</option>`).join('')}</select></label><label><input type="checkbox" name="reinvestDividends" checked> Reinvest dividends</label><button type="button" onclick="lookupAccountHolding('${entity.id}')">Lookup ticker</button><button type="submit">Add holding</button></form></div><div class="panel"><h3>Holdings</h3><div class="table-wrap"><table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Price</th><th>Market value</th><th>Dividend</th><th>Frequency</th><th>Reinvest</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+        wireEntityDetailsForm(entity);
+        $('accountHoldingForm').onsubmit = async event => {
+            event.preventDefault();
+            if (!event.target.reportValidity()) return;
+            const data = new FormData(event.target);
+            const holding = Object.fromEntries(data);
+            if (!holding.name || !holding.name.trim()) holding.name = holding.ticker;
+            holding.shares = Number(holding.shares || 0);
+            holding.currentPrice = Number(holding.currentPrice || 0);
+            holding.dividendAmount = Number(holding.dividendAmount || 0);
+            holding.dividendFrequency = holding.dividendFrequency || 'NONE';
+            holding.reinvestDividends = data.has('reinvestDividends');
+            holding.expectedAnnualPriceGrowthPercent = entity.expectedAnnualGrowthPercent || 6;
+            holding.expectedAnnualDividendGrowthPercent = 0;
+            state = await api(`/api/accounts/${entity.id}/holdings`, { method: 'POST', body: JSON.stringify(holding) });
+            showTab(entity.id);
+            await refreshProjection();
+        };
+        return;
+    }
+
+    const isSavings = type === 'Savings Account';
+    $('accountTab').innerHTML = header + cards + `<div class="panel"><h3>${isSavings ? 'Savings Details' : 'Asset Details'}</h3><form id="entityDetailsForm" class="form"><label>${isSavings ? 'Current balance' : 'Estimated current value'}<input name="currentValue" type="number" step="any" min="0" value="${entity.currentValue || 0}"></label><label>${isSavings ? 'Expected annual interest rate %' : 'Expected annual appreciation/depreciation %'}<input name="expectedAnnualGrowthPercent" type="number" step="any" value="${entity.expectedAnnualGrowthPercent || 0}"></label>${isSavings ? `<label>Monthly contribution<input name="monthlyContribution" type="number" step="any" min="0" value="${entity.monthlyContribution || 0}"></label><label>Yearly contribution<input name="yearlyContribution" type="number" step="any" min="0" value="${entity.yearlyContribution || 0}"></label>` : ''}<label><input name="includeInOverview" type="checkbox" ${entity.includeInOverview !== false ? 'checked' : ''}> Include in Overview</label><button>Save ${isSavings ? 'savings' : 'asset'}</button></form></div>`;
+    wireEntityDetailsForm(entity);
+}
+
+function wireEntityDetailsForm(entity) {
+    const form = $('entityDetailsForm');
+    if (!form) return;
+    form.onsubmit = async event => {
+        event.preventDefault();
+        const data = new FormData(event.target);
+        const updated = {
+            ...entity,
+            currentValue: +(data.get('currentValue') ?? entity.currentValue ?? 0),
+            annualContribution: +(data.get('annualContribution') ?? entity.annualContribution ?? 0),
+            monthlyContribution: +(data.get('monthlyContribution') ?? entity.monthlyContribution ?? 0),
+            yearlyContribution: +(data.get('yearlyContribution') ?? entity.yearlyContribution ?? 0),
+            expectedAnnualGrowthPercent: +(data.get('expectedAnnualGrowthPercent') ?? entity.expectedAnnualGrowthPercent ?? 0),
+            includeInOverview: data.has('includeInOverview')
+        };
+        state = await api(`/api/accounts/${entity.id}`, { method: 'PUT', body: JSON.stringify(updated) });
+        showTab(entity.id);
+        await refreshProjection();
+    };
+}

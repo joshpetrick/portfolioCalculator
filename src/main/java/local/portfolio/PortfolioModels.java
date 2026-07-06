@@ -47,9 +47,14 @@ public class PortfolioModels {
     }
 
     public record Scenario(String id, @NotBlank String name, @Valid Assumptions assumptions, @Valid RsuSettings rsuSettings) {}
-    public record InvestmentAccount(String id, @NotBlank String name, String category, String type, @PositiveOrZero double currentValue, @PositiveOrZero double annualContribution, double expectedAnnualGrowthPercent, List<@Valid Holding> holdings) {
+    public record InvestmentAccount(String id, @NotBlank String name, String description, @NotBlank String type, boolean includeInOverview, @PositiveOrZero double currentValue, @PositiveOrZero double annualContribution, @PositiveOrZero double monthlyContribution, @PositiveOrZero double yearlyContribution, double expectedAnnualGrowthPercent, List<@Valid Holding> holdings) {
         public InvestmentAccount normalized() {
-            return new InvestmentAccount(id, name, category == null ? "" : category, type == null || type.isBlank() ? "Portfolio" : type, currentValue, annualContribution, expectedAnnualGrowthPercent, holdings == null ? new ArrayList<>() : holdings);
+            String normalizedType = switch (type == null ? "" : type) {
+                case "Asset", "Savings Account", "Investment Account" -> type;
+                case "Income" -> "Savings Account";
+                default -> "Investment Account";
+            };
+            return new InvestmentAccount(id, name, description == null ? "" : description, normalizedType, includeInOverview, currentValue, annualContribution, monthlyContribution, yearlyContribution, expectedAnnualGrowthPercent, holdings == null ? new ArrayList<>() : holdings);
         }
     }
     public record PortfolioState(List<@Valid Holding> holdings, @Valid Scenario activeScenario, List<@Valid Scenario> savedScenarios, List<@Valid InvestmentAccount> accounts) {}

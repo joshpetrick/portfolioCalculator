@@ -37,26 +37,22 @@ public class PortfolioStore {
     }
 
     private PortfolioState normalize(PortfolioState loaded) {
+        var accounts = loaded.accounts() == null ? new ArrayList<InvestmentAccount>() : new ArrayList<>(loaded.accounts().stream().map(InvestmentAccount::normalized).toList());
+        var legacyHoldings = loaded.holdings() == null ? new ArrayList<Holding>() : new ArrayList<>(loaded.holdings());
+        if (!legacyHoldings.isEmpty()) {
+            accounts.add(new InvestmentAccount(UUID.randomUUID().toString(), "Imported Investment Account", "Migrated from the original stock portfolio", "Investment Account", true, 0, 0, 0, 0, 6.0, legacyHoldings).normalized());
+            legacyHoldings = new ArrayList<>();
+        }
         return new PortfolioState(
-                loaded.holdings() == null ? new ArrayList<>() : loaded.holdings(),
+                legacyHoldings,
                 loaded.activeScenario(),
                 loaded.savedScenarios() == null ? new ArrayList<>() : loaded.savedScenarios(),
-                loaded.accounts() == null ? new ArrayList<>() : loaded.accounts().stream().map(InvestmentAccount::normalized).toList()
+                accounts
         );
     }
 
     private PortfolioState seed() {
-        var holdings = List.of(
-                new Holding(UUID.randomUUID().toString(), "VTI", "Vanguard Total Stock Market ETF", 25, 260, 0.91, DividendFrequency.QUARTERLY, true, 7.0, 4.0),
-                new Holding(UUID.randomUUID().toString(), "SCHD", "Schwab U.S. Dividend Equity ETF", 80, 78, 0.74, DividendFrequency.QUARTERLY, true, 6.0, 6.0),
-                new Holding(UUID.randomUUID().toString(), "MSFT", "Microsoft", 10, 420, 0.75, DividendFrequency.QUARTERLY, false, 8.0, 8.0)
-        );
-        var base = new Scenario(UUID.randomUUID().toString(), "Base plan", new Assumptions(350, PaycheckFrequency.BIWEEKLY, 6500, 1, true), new RsuSettings("MSFT", 420, 15, 20000, 5.0, true));
-        var conservative = new Scenario(UUID.randomUUID().toString(), "Conservative", new Assumptions(250, PaycheckFrequency.BIWEEKLY, 3000, 1, true), new RsuSettings("MSFT", 420, 10, 12000, 2.0, true));
-        var accounts = new ArrayList<>(List.of(
-                new InvestmentAccount(UUID.randomUUID().toString(), "401k", "Retirement", "Retirement", 85000, 23000, 7.0, new ArrayList<>()),
-                new InvestmentAccount(UUID.randomUUID().toString(), "HSA", "Health savings", "HSA", 12000, 4300, 6.0, new ArrayList<>())
-        ));
-        return new PortfolioState(new ArrayList<>(holdings), base, new ArrayList<>(List.of(base, conservative)), accounts);
+        var base = new Scenario(UUID.randomUUID().toString(), "Base plan", new Assumptions(0, PaycheckFrequency.BIWEEKLY, 0, 1, true), new RsuSettings("", 0, 0, 0, 5.0, true));
+        return new PortfolioState(new ArrayList<>(), base, new ArrayList<>(List.of(base)), new ArrayList<>());
     }
 }

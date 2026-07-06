@@ -3,15 +3,15 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Portfolio Forecaster</title>
+    <title>Wealth Assessment</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="dark">
 <header>
     <div>
-        <h1>Portfolio Forecaster</h1>
-        <p>Local dividend, contribution, and RSU simulator</p>
+        <h1>Wealth Assessment</h1>
+        <p>Local net-worth, investment, asset, and savings dashboard</p>
     </div>
     <button id="theme" type="button">☀️ Toggle theme</button>
 </header>
@@ -21,6 +21,7 @@
     <div id="mainOverview">
     <section class="cards" id="currentDashboard"></section>
     <section class="cards" id="dashboard"></section>
+    <section class="grid" id="overviewBreakdowns"></section>
 
     <section class="panel">
         <div class="section-title">
@@ -80,7 +81,7 @@
     <section class="grid detail-section" id="summaryDetails">
         <div class="panel"><h2>Dividend income summary</h2><div id="dividendSummary"></div></div>
         <div class="panel"><h2>RSU summary</h2><div id="rsuSummary"></div></div>
-        <div class="panel"><h2>Tabs</h2><p class="muted">Use the + tab next to Overview to create Stock, Income, or Asset tabs.</p><div id="accountsList"></div></div>
+        <div class="panel"><h2>Tabs</h2><p class="muted">Use the + tab next to Overview to create Investment Account, Asset, or Savings Account entities.</p><div id="accountsList"></div></div>
     </section>
     </div>
 </main>
@@ -91,12 +92,9 @@
             <button id="closeTabWizard" type="button" class="secondary">Cancel</button>
         </div>
         <form id="tabWizardForm" class="form">
-            <label>Tab name<input name="name" required placeholder="Funny money / Employer stock / 401k"></label>
-            <label>Entity type<select name="type" required><option>Stock</option><option>Income</option><option>Asset</option></select></label>
-            <label>Category<input name="category" placeholder="Optional category"></label>
-            <label>Current value<input name="currentValue" type="number" step="any" min="0" value="0"></label>
-            <label>Annual contribution or income<input name="annualContribution" type="number" step="any" min="0" value="0"></label>
-            <label>Expected annual growth %<input name="expectedAnnualGrowthPercent" type="number" step="any" value="6"></label>
+            <label>Tab name<input name="name" required placeholder="Brokerage / 401k / HSA / Savings / House"></label>
+            <label>Entity type<select name="type" required><option>Investment Account</option><option>Asset</option><option>Savings Account</option></select></label>
+            <label>Description<input name="description" placeholder="Optional description"></label>
             <button type="submit">Create tab</button>
         </form>
     </div>

@@ -1,22 +1,22 @@
-# Portfolio Calculator
+# Wealth Assessment
 
-A local-first Spring Boot web app for tracking stock holdings and forecasting a personal portfolio with dividend reinvestment, recurring contributions, yearly contributions, and RSU grants.
+A local-first Spring Boot web app for assessing personal wealth across user-created entities such as investment accounts, savings accounts, and assets. The app keeps the existing stock lookup, dividend, reinvestment, contribution, RSU, projection, charting, CSV export, and local JSON persistence behavior while organizing data around wealth entities.
 
 ## Features
 
-- Dynamic overview tabs for the whole investment picture plus a + tab wizard for creating named Stock, Income, or Asset tabs.
-- View-only overview dashboard with agnostic total overall current value and total overall projected value; only projection time horizon and strategy are changed there, while all data entry happens inside individual tabs.
-- Add, edit, delete, and inline-edit holdings. Ticker and shares are required before adding a holding; the display name is optional and can be filled by lookup.
-- Dividend frequency support: monthly, quarterly, semiannual, annual, and none.
-- Per-holding price growth and dividend growth assumptions.
-- Paycheck and yearly contribution assumptions in a dedicated section; projected contributions are invested evenly across all portfolio holdings, including dividend stocks.
-- RSU forecast section with a stock-symbol picker, current RSU share count, estimated annual RSU value, share price lookup, annual vesting, and optional inclusion.
-- Use the + tab wizard to create additional tabs with name, entity type, optional category, current value, annual contribution or income, expected growth, ticker-based stock holdings, dividend details, and ticker lookup.
-- Projection slider for 1-20 years plus scenario selector for base, conservative, and aggressive views.
-- Charts for portfolio value, dividend income, contributions, growth, RSUs, and combined value.
-- Public market-data lookup can fill current share price and estimated dividend information after you enter a ticker. The backend calls the external Yahoo Finance chart API (`query1.finance.yahoo.com/v8/finance/chart/{ticker}`), for example `/api/market-data/RTX`.
+- Starts with a view-only `Overview` tab and a permanent `+` tab.
+- The `+` tab opens a create-entity modal with required entity name, optional description, and required entity type.
+- Supported entity types are `Investment Account`, `Asset`, and `Savings Account`.
+- User-created entity tabs appear between `Overview` and `+`; no brokerage, 401k, HSA, or funny-money tabs are hardcoded.
+- Each entity has name, description, type, and an `Include in Overview` setting. Entity tabs can be edited or deleted with confirmation.
+- Overview aggregates only included entities and shows total current net worth, total projected value, current yearly dividends, projected dividend income, breakdown by entity, breakdown by type, and projection/dividend charts.
+- Investment Account entities support ticker lookup, stock/ETF holdings, share counts, prices, dividend amount/frequency, reinvestment, expected growth, and annual contributions.
+- Asset entities support estimated current value and expected annual appreciation/depreciation without stock-specific forms.
+- Savings Account entities support current balance, expected annual interest rate, monthly contribution, and yearly contribution without stock-specific forms.
+- Public market-data lookup fills current share price, display name, and estimated dividend information from the external Yahoo Finance chart API (`query1.finance.yahoo.com/v8/finance/chart/{ticker}`), for example `/api/market-data/RTX`.
+- Projection horizons support 1, 3, 5, 10, and 20 years plus base, conservative, and aggressive strategies.
+- Dark mode is enabled by default.
 - CSV export for holdings and projection results.
-- Dark mode is enabled by default, plus seed/example data.
 - Local JSON persistence at `~/.portfolio-calculator/portfolio-data.json`.
 
 ## Requirements
@@ -39,27 +39,26 @@ Open <http://localhost:8080>.
 3. Run `local.portfolio.PortfolioCalculatorApplication`.
 4. Open <http://localhost:8080>.
 
-## Data storage
+## Data storage and migration
 
-The app creates seed data the first time it starts and persists changes to:
+The app persists changes to:
 
 ```text
 ~/.portfolio-calculator/portfolio-data.json
 ```
 
-Delete that file to reset to the bundled example portfolio.
+On first run, the tab bar starts empty except for `Overview | +`. If older data contains legacy top-level stock holdings from the original Portfolio Forecaster, those holdings are migrated into an `Imported Investment Account` entity so existing stock data is not lost. Delete the JSON file to reset local data.
 
 ## Projection model
 
 The projection is intentionally simple for an MVP:
 
-1. Each month compounds each holding's expected annual share-price growth into a monthly rate.
-2. Each month compounds expected annual dividend growth into a monthly rate.
-3. Dividends are paid according to the configured frequency.
-4. Reinvested dividends buy fractional shares of the same ticker at the simulated current price.
-5. Recurring paycheck contributions and yearly contributions buy fractional shares evenly across all holdings in the regular portfolio.
-6. RSUs use their own ticker/share price, include existing RSU shares, convert estimated annual grant value into shares once per year, and are tracked separately from the dividend portfolio.
-7. Additional tabs such as 401k/HSA/assets/income compound monthly with annual contribution or income assumptions spread across the year; portfolio-style tabs can also hold ticker-based stocks with dividends and reinvestment included in that tab total.
-8. Charts show regular portfolio, RSU value, other accounts, combined value, contributions, dividends, and growth value.
+1. Investment Account holdings compound expected annual share-price growth into monthly rates.
+2. Dividend growth is compounded monthly, dividends are paid according to each holding's configured frequency, and reinvested dividends buy fractional shares of the same ticker.
+3. Investment Account annual contributions are spread monthly and invested evenly across holdings when holdings exist.
+4. Asset entities compound estimated current value by expected annual appreciation/depreciation.
+5. Savings Account entities compound current balance by expected annual interest and add monthly/yearly contribution assumptions.
+6. RSUs retain the existing separate projection behavior: existing shares, annual grant value converted to shares once per year, ticker price growth, and optional inclusion.
+7. Overview totals sum included entities and exclude any entity with `Include in Overview` turned off.
 
 Market-data lookup uses the external Yahoo Finance chart API from your local machine when you click the lookup button. The app still stores data locally and does not require cloud hosting. This is not financial advice.

@@ -74,7 +74,7 @@ public class PortfolioController {
     PortfolioState addAccount(@Valid @RequestBody InvestmentAccount account) {
         var state = store.load();
         var accounts = new ArrayList<>(state.accounts());
-        accounts.add(new InvestmentAccount(UUID.randomUUID().toString(), account.name(), account.category(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent(), account.holdings()).normalized());
+        accounts.add(new InvestmentAccount(UUID.randomUUID().toString(), account.name(), account.description(), account.type(), account.includeInOverview(), account.currentValue(), account.annualContribution(), account.monthlyContribution(), account.yearlyContribution(), account.expectedAnnualGrowthPercent(), account.holdings()).normalized());
         return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
     }
 
@@ -82,7 +82,7 @@ public class PortfolioController {
     PortfolioState updateAccount(@PathVariable("id") String id, @Valid @RequestBody InvestmentAccount account) {
         var state = store.load();
         var accounts = state.accounts().stream()
-                .map(a -> a.id().equals(id) ? new InvestmentAccount(id, account.name(), account.category(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent(), account.holdings()).normalized() : a)
+                .map(a -> a.id().equals(id) ? new InvestmentAccount(id, account.name(), account.description(), account.type(), account.includeInOverview(), account.currentValue(), account.annualContribution(), account.monthlyContribution(), account.yearlyContribution(), account.expectedAnnualGrowthPercent(), account.holdings()).normalized() : a)
                 .toList();
         return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
     }
@@ -102,7 +102,7 @@ public class PortfolioController {
             if (!account.id().equals(id)) return account;
             var holdings = new ArrayList<>(account.normalized().holdings());
             holdings.add(holding.withId(UUID.randomUUID().toString()));
-            return new InvestmentAccount(account.id(), account.name(), account.category(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent(), holdings).normalized();
+            return new InvestmentAccount(account.id(), account.name(), account.description(), account.type(), account.includeInOverview(), account.currentValue(), account.annualContribution(), account.monthlyContribution(), account.yearlyContribution(), account.expectedAnnualGrowthPercent(), holdings).normalized();
         }).toList();
         return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
     }
@@ -113,7 +113,7 @@ public class PortfolioController {
         var accounts = state.accounts().stream().map(account -> {
             if (!account.id().equals(accountId)) return account;
             var holdings = account.normalized().holdings().stream().filter(h -> !h.id().equals(holdingId)).toList();
-            return new InvestmentAccount(account.id(), account.name(), account.category(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent(), holdings).normalized();
+            return new InvestmentAccount(account.id(), account.name(), account.description(), account.type(), account.includeInOverview(), account.currentValue(), account.annualContribution(), account.monthlyContribution(), account.yearlyContribution(), account.expectedAnnualGrowthPercent(), holdings).normalized();
         }).toList();
         return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
     }
@@ -152,7 +152,13 @@ public class PortfolioController {
     @GetMapping(value = "/export/holdings.csv", produces = "text/csv")
     ResponseEntity<String> exportHoldings() {
         String header = "Ticker,Name,Shares,Current Price,Dividend Amount,Dividend Frequency,Reinvest,Price Growth %,Dividend Growth %\n";
-        String rows = store.load().holdings().stream()
+        var state = store.load();
+        var allHoldings = new ArrayList<Holding>(state.holdings());
+        Optional.ofNullable(state.accounts()).orElse(List.of()).stream()
+                .map(InvestmentAccount::normalized)
+                .flatMap(account -> account.holdings().stream())
+                .forEach(allHoldings::add);
+        String rows = allHoldings.stream()
                 .map(h -> csv(h.ticker(), h.name(), h.shares(), h.currentPrice(), h.dividendAmount(), h.dividendFrequency(), h.reinvestDividends(), h.expectedAnnualPriceGrowthPercent(), h.expectedAnnualDividendGrowthPercent()))
                 .collect(Collectors.joining("\n"));
         return csvResponse("holdings.csv", header + rows + "\n");
