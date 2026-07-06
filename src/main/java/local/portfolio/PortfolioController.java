@@ -33,8 +33,14 @@ public class PortfolioController {
     }
 
     @GetMapping("/market-data/{ticker}")
-    QuoteInfo marketData(@PathVariable String ticker) {
-        return marketData.lookup(ticker);
+    ResponseEntity<?> marketData(@PathVariable String ticker) {
+        try {
+            return ResponseEntity.ok(marketData.lookup(ticker));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage(), "provider", MarketDataService.PROVIDER_NAME));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("message", e.getMessage(), "provider", MarketDataService.PROVIDER_NAME));
+        }
     }
 
     @PostMapping("/holdings")

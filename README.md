@@ -12,7 +12,7 @@ A local-first Spring Boot web app for tracking stock holdings and forecasting a 
 - RSU forecast section with annual vesting and optional inclusion.
 - Projection slider for 1-20 years plus scenario selector for base, conservative, and aggressive views.
 - Charts for portfolio value, dividend income, contributions, growth, RSUs, and combined value.
-- Public market-data lookup can fill current share price and estimated dividend information after you enter a ticker.
+- Public market-data lookup can fill current share price and estimated dividend information after you enter a ticker. The backend calls the external Yahoo Finance chart API (`query1.finance.yahoo.com/v8/finance/chart/{ticker}`), for example `/api/market-data/RTX`.
 - CSV export for holdings and projection results.
 - Dark mode is enabled by default, plus seed/example data.
 - Local JSON persistence at `~/.portfolio-calculator/portfolio-data.json`.
@@ -59,4 +59,4 @@ The projection is intentionally simple for an MVP:
 6. RSUs vest once per year and are tracked separately from the dividend portfolio.
 7. Charts show regular portfolio, RSU value, combined value, contributions, dividends, and growth value.
 
-Market-data lookup uses Yahoo Finance public quote data from your local machine when you click the lookup button. The app still stores data locally and does not require cloud hosting. This is not financial advice.
+Market-data lookup uses the external Yahoo Finance chart API from your local machine when you click the lookup button. The app still stores data locally and does not require cloud hosting. This is not financial advice.

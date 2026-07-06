@@ -9,7 +9,16 @@ const frequencies = ['MONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'ANNUAL', 'NONE'];
 
 async function api(url, opts) {
     const response = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) {
+        const body = await response.text();
+        try {
+            const parsed = JSON.parse(body);
+            throw new Error(parsed.message || body);
+        } catch (error) {
+            if (error instanceof SyntaxError) throw new Error(body);
+            throw error;
+        }
+    }
     return response.json();
 }
 
@@ -139,7 +148,7 @@ async function lookupQuote() {
         form.elements.currentPrice.value = quote.currentPrice || 0;
         form.elements.dividendAmount.value = quote.dividendAmount || 0;
         form.elements.dividendFrequency.value = quote.dividendFrequency;
-        setStatus(`Filled ${quote.name} (${quote.ticker}) at ${money(quote.currentPrice)} with estimated ${quote.dividendFrequency.toLowerCase()} dividend data.`, 'ok');
+        setStatus(`Filled ${quote.ticker} at ${money(quote.currentPrice)} with estimated ${quote.dividendFrequency.toLowerCase()} dividend data from the external Yahoo Finance chart API.`, 'ok');
     } catch (error) {
         setStatus(`Lookup failed: ${error.message}. You can still enter price and dividend fields manually.`, 'error');
     }
