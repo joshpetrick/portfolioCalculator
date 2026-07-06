@@ -1,0 +1,54 @@
+package local.portfolio;
+
+import jakarta.validation.Valid;
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
+import java.util.*;
+import java.util.stream.Collectors;
+import static local.portfolio.PortfolioModels.*;
+
+@RestController
+@RequestMapping("/api")
+public class PortfolioController {
+    private final PortfolioStore store; private final ProjectionService projections;
+    public PortfolioController(PortfolioStore store, ProjectionService projections){this.store=store;this.projections=projections;}
+
+    @GetMapping("/portfolio") PortfolioState portfolio(){ return store.load(); }
+    @PutMapping("/portfolio") PortfolioState save(@Valid @RequestBody PortfolioState state){ return store.save(state); }
+
+    @PostMapping("/holdings") PortfolioState addHolding(@Valid @RequestBody Holding holding){
+        var state=store.load(); var holdings=new ArrayList<>(state.holdings()); holdings.add(holding.withId(UUID.randomUUID().toString()));
+        return store.save(new PortfolioState(holdings,state.activeScenario(),state.savedScenarios()));
+    }
+    @PutMapping("/holdings/{id}") PortfolioState updateHolding(@PathVariable String id,@Valid @RequestBody Holding holding){
+        var state=store.load(); var holdings=state.holdings().stream().map(h->h.id().equals(id)?holding.withId(id):h).toList();
+        return store.save(new PortfolioState(holdings,state.activeScenario(),state.savedScenarios()));
+    }
+    @DeleteMapping("/holdings/{id}") PortfolioState deleteHolding(@PathVariable String id){
+        var state=store.load(); var holdings=state.holdings().stream().filter(h->!h.id().equals(id)).toList();
+        return store.save(new PortfolioState(holdings,state.activeScenario(),state.savedScenarios()));
+    }
+    @PutMapping("/scenario") PortfolioState scenario(@Valid @RequestBody Scenario scenario){
+        var state=store.load(); var normalized = new Scenario(scenario.id()==null||scenario.id().isBlank()?UUID.randomUUID().toString():scenario.id(), scenario.name(), scenario.assumptions(), scenario.rsuSettings());
+        var saved = new ArrayList<>(state.savedScenarios()); saved.removeIf(s -> s.id().equals(normalized.id())); saved.add(normalized);
+        return store.save(new PortfolioState(state.holdings(), normalized, saved));
+    }
+    @PostMapping("/scenario/duplicate") PortfolioState duplicate(){
+        var state=store.load(); var s=state.activeScenario(); var copy=new Scenario(UUID.randomUUID().toString(), s.name()+" copy", s.assumptions(), s.rsuSettings());
+        var saved=new ArrayList<>(state.savedScenarios()); saved.add(copy); return store.save(new PortfolioState(state.holdings(), copy, saved));
+    }
+    @GetMapping("/projection") ProjectionResult projection(@RequestParam(defaultValue="10") int years,@RequestParam(defaultValue="base") String scenario){ return projections.project(store.load(), years, scenario); }
+
+    @GetMapping(value="/export/holdings.csv", produces="text/csv") ResponseEntity<String> exportHoldings(){
+        String header="Ticker,Name,Shares,Current Price,Dividend Amount,Dividend Frequency,Reinvest,Price Growth %,Dividend Growth %\n";
+        String rows=store.load().holdings().stream().map(h->csv(h.ticker(),h.name(),h.shares(),h.currentPrice(),h.dividendAmount(),h.dividendFrequency(),h.reinvestDividends(),h.expectedAnnualPriceGrowthPercent(),h.expectedAnnualDividendGrowthPercent())).collect(Collectors.joining("\n"));
+        return csvResponse("holdings.csv", header+rows+"\n");
+    }
+    @GetMapping(value="/export/projection.csv", produces="text/csv") ResponseEntity<String> exportProjection(@RequestParam(defaultValue="10") int years){
+        String header="Month,Year,Portfolio Value,Dividend Income,Share Count,Contributions,RSU Value,Combined Value,Growth Value\n";
+        String rows=projections.project(store.load(),years,"base").points().stream().map(p->csv(p.month(),p.year(),p.portfolioValue(),p.dividendIncome(),p.shareCount(),p.contributions(),p.rsuValue(),p.combinedValue(),p.growthValue())).collect(Collectors.joining("\n"));
+        return csvResponse("projection.csv", header+rows+"\n");
+    }
+    private ResponseEntity<String> csvResponse(String name,String body){ return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename="+name).contentType(MediaType.valueOf("text/csv")).body(body); }
+    private String csv(Object... vals){ return Arrays.stream(vals).map(v->v==null?"":v.toString().replace("\"","\"\"")).map(v->v.contains(",")?"\""+v+"\"":v).collect(Collectors.joining(",")); }
+}
