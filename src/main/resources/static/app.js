@@ -26,6 +26,7 @@ async function load() {
     state = await api('/api/portfolio');
     renderForms();
     renderTabs();
+    showTab('overview');
     await refreshProjection();
     renderHoldings();
     renderAccounts();
@@ -66,6 +67,7 @@ function showTab(tab) {
     if (tab === 'overview' || tab === 'stock') {
         $('mainOverview').classList.remove('hidden');
         $('accountTab').classList.add('hidden');
+        document.querySelectorAll('.detail-section').forEach(section => section.classList.toggle('hidden', tab === 'overview'));
         return;
     }
     const account = (state.accounts || []).find(a => a.id === tab);
@@ -313,6 +315,7 @@ async function editAccount(id) {
     const expectedAnnualGrowthPercent = Number(prompt('Expected annual growth %', account.expectedAnnualGrowthPercent) || account.expectedAnnualGrowthPercent);
     state = await api(`/api/accounts/${id}`, { method: 'PUT', body: JSON.stringify({ ...account, name, currentValue, annualContribution, expectedAnnualGrowthPercent }) });
     renderTabs();
+    showTab('stock');
     renderAccounts();
     await refreshProjection();
 }
@@ -320,6 +323,7 @@ async function editAccount(id) {
 async function deleteAccount(id) {
     state = await api(`/api/accounts/${id}`, { method: 'DELETE' });
     renderTabs();
+    showTab('stock');
     renderAccounts();
     await refreshProjection();
 }
@@ -405,6 +409,7 @@ $('accountForm').onsubmit = async event => {
     state = await api('/api/accounts', { method: 'POST', body: JSON.stringify(account) });
     event.target.reset();
     renderTabs();
+    showTab('stock');
     renderAccounts();
     await refreshProjection();
 };

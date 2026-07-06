@@ -5,7 +5,7 @@ A local-first Spring Boot web app for tracking stock holdings and forecasting a 
 ## Features
 
 - Dynamic overview tabs for the whole investment picture plus named tabs for portfolios, employer stock, 401k, HSA, assets such as houses/vehicles, income, or future account types.
-- Overview dashboard with agnostic total overall current value and total overall projected value, with details available inside each tab.
+- View-only overview dashboard with agnostic total overall current value and total overall projected value; only projection time horizon and strategy are changed there, while all data entry happens inside individual tabs.
 - Add, edit, delete, and inline-edit holdings. Ticker and shares are required before adding a holding; the display name is optional and can be filled by lookup.
 - Dividend frequency support: monthly, quarterly, semiannual, annual, and none.
 - Per-holding price growth and dividend growth assumptions.

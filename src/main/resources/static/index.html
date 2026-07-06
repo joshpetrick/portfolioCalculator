@@ -36,7 +36,7 @@
         <canvas id="incomeChart"></canvas>
     </section>
 
-    <section class="grid">
+    <section class="grid detail-section" id="stockDetails">
         <div class="panel">
             <div class="section-title">
                 <h2>Add to portfolio</h2>
@@ -64,7 +64,7 @@
         </div>
     </section>
 
-    <section class="panel">
+    <section class="panel detail-section" id="holdingsDetails">
         <div class="section-title">
             <h2>Holdings table</h2>
             <div><a href="/api/export/holdings.csv">Export holdings CSV</a> · <a id="projectionCsv" href="/api/export/projection.csv?years=5">Export projection CSV</a></div>
@@ -77,7 +77,7 @@
         </div>
     </section>
 
-    <section class="grid">
+    <section class="grid detail-section" id="summaryDetails">
         <div class="panel"><h2>Dividend income summary</h2><div id="dividendSummary"></div></div>
         <div class="panel"><h2>RSU summary</h2><div id="rsuSummary"></div></div>
         <div class="panel"><h2>Other investment accounts</h2><form id="accountForm" class="form"></form><div id="accountsList"></div></div>
