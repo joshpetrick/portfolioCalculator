@@ -50,7 +50,21 @@ function renderDashboard() {
     ].map(item => `<div class="card"><span class="muted">${item[0]}</span><br><b>${item[1]}</b></div>`).join('');
 
     $('dividendSummary').innerHTML = `Projected cumulative income: <b>${money(s.dividendIncome)}</b><br>Current annual run-rate estimate: <b>${money(state.holdings.reduce((sum, h) => sum + h.shares * h.dividendAmount * paymentsPerYear(h.dividendFrequency), 0))}</b>`;
-    $('rsuSummary').innerHTML = `Annual grant: <b>${money(state.activeScenario.rsuSettings.annualGrantValue)}</b><br>Growth: <b>${state.activeScenario.rsuSettings.expectedAnnualGrowthPercent}%</b><br>Included: <b>${state.activeScenario.rsuSettings.includeInProjection ? 'Yes' : 'No'}</b>`;
+    const rsu = normalizedRsu();
+    $('rsuSummary').innerHTML = `Ticker: <b>${rsu.ticker || 'Not set'}</b><br>Current RSU shares: <b>${rsu.currentShares}</b><br>Estimated annual RSU shares: <b>${rsu.annualGrantShares}</b><br>Share price: <b>${money(rsu.currentSharePrice)}</b><br>Growth: <b>${rsu.expectedAnnualGrowthPercent}%</b><br>Included: <b>${rsu.includeInProjection ? 'Yes' : 'No'}</b>`;
+}
+
+
+function normalizedRsu() {
+    const rsu = state.activeScenario.rsuSettings || {};
+    return {
+        ticker: rsu.ticker || '',
+        currentSharePrice: Number(rsu.currentSharePrice || 0),
+        currentShares: Number(rsu.currentShares || 0),
+        annualGrantShares: Number(rsu.annualGrantShares || 0),
+        expectedAnnualGrowthPercent: Number(rsu.expectedAnnualGrowthPercent || 0),
+        includeInProjection: rsu.includeInProjection !== false
+    };
 }
 
 function paymentsPerYear(frequency) {
@@ -108,19 +122,28 @@ function renderForms() {
         </div>`;
 
     const a = state.activeScenario;
-    $('assumptionForm').innerHTML = `
+    const rsu = normalizedRsu();
+    $('scenarioForm').innerHTML = `
         <label>Scenario name<input name="name" required value="${a.name}"></label>
+        <button type="submit">Save scenario</button>`;
+    $('contributionForm').innerHTML = `
         <label>Per paycheck<input name="contributionPerPaycheck" type="number" step="any" min="0" value="${a.assumptions.contributionPerPaycheck}"></label>
         <label>Pay frequency<select name="paycheckFrequency">${['WEEKLY', 'BIWEEKLY', 'MONTHLY'].map(x => `<option ${a.assumptions.paycheckFrequency === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
         <label>Yearly contribution<input name="yearlyContributionAmount" type="number" step="any" min="0" value="${a.assumptions.yearlyContributionAmount}"></label>
         <label>Yearly month<input name="yearlyContributionMonth" type="number" min="1" max="12" value="${a.assumptions.yearlyContributionMonth}"></label>
         <label><input name="contributionsEnabled" type="checkbox" ${a.assumptions.contributionsEnabled ? 'checked' : ''}> Enable contributions</label>
-        <label>Annual RSU grant<input name="annualGrantValue" type="number" step="any" min="0" value="${a.rsuSettings.annualGrantValue}"></label>
-        <label>RSU growth %<input name="expectedAnnualGrowthPercent" type="number" step="any" value="${a.rsuSettings.expectedAnnualGrowthPercent}"></label>
-        <label><input name="includeInProjection" type="checkbox" ${a.rsuSettings.includeInProjection ? 'checked' : ''}> Include RSUs</label>
-        <button type="submit">Save assumptions</button>`;
+        <button type="submit">Save contributions</button>`;
+    $('rsuForm').innerHTML = `
+        <label>RSU ticker<input name="ticker" pattern="[A-Za-z.]{0,10}" value="${rsu.ticker}" placeholder="MSFT"></label>
+        <label>Current RSU share price<input name="currentSharePrice" type="number" step="any" min="0" value="${rsu.currentSharePrice}"></label>
+        <label>Existing RSU shares<input name="currentShares" type="number" step="any" min="0" value="${rsu.currentShares}"></label>
+        <label>Estimated RSU shares per year<input name="annualGrantShares" type="number" step="any" min="0" value="${rsu.annualGrantShares}"></label>
+        <label>RSU annual growth %<input name="expectedAnnualGrowthPercent" type="number" step="any" value="${rsu.expectedAnnualGrowthPercent}"></label>
+        <label><input name="includeInProjection" type="checkbox" ${rsu.includeInProjection ? 'checked' : ''}> Include RSUs</label>
+        <div class="form-actions"><button id="lookupRsuQuote" class="secondary" type="button">Lookup RSU stock price</button><button type="submit">Save RSUs</button></div>`;
 
     $('lookupQuote').onclick = lookupQuote;
+    $('lookupRsuQuote').onclick = lookupRsuQuote;
 }
 
 function field(name, label, type, options = {}) {
@@ -157,6 +180,32 @@ async function lookupQuote() {
 function setStatus(message, type = '') {
     $('lookupStatus').textContent = message;
     $('lookupStatus').className = `status ${type}`;
+}
+
+
+async function lookupRsuQuote() {
+    const form = $('rsuForm');
+    const ticker = form.elements.ticker.value.trim();
+    setRsuStatus('');
+    if (!ticker) {
+        form.elements.ticker.reportValidity();
+        setRsuStatus('Enter an RSU ticker before lookup.', 'error');
+        return;
+    }
+    try {
+        setRsuStatus(`Looking up ${ticker.toUpperCase()}...`);
+        const quote = await api(`/api/market-data/${encodeURIComponent(ticker)}`);
+        form.elements.ticker.value = quote.ticker;
+        form.elements.currentSharePrice.value = quote.currentPrice || 0;
+        setRsuStatus(`Filled ${quote.ticker} RSU share price at ${money(quote.currentPrice)}.`, 'ok');
+    } catch (error) {
+        setRsuStatus(`RSU lookup failed: ${error.message}. You can enter the share price manually.`, 'error');
+    }
+}
+
+function setRsuStatus(message, type = '') {
+    $('rsuLookupStatus').textContent = message;
+    $('rsuLookupStatus').className = `status ${type}`;
 }
 
 function renderHoldings() {
@@ -206,28 +255,37 @@ $('holdingForm').onsubmit = async event => {
     renderHoldings();
 };
 
-$('assumptionForm').onsubmit = async event => {
-    event.preventDefault();
-    const data = new FormData(event.target);
+async function saveScenario() {
+    const scenarioData = new FormData($('scenarioForm'));
+    const contributionData = new FormData($('contributionForm'));
+    const rsuData = new FormData($('rsuForm'));
     const scenario = {
         id: state.activeScenario.id,
-        name: data.get('name'),
+        name: scenarioData.get('name'),
         assumptions: {
-            contributionPerPaycheck: +data.get('contributionPerPaycheck'),
-            paycheckFrequency: data.get('paycheckFrequency'),
-            yearlyContributionAmount: +data.get('yearlyContributionAmount'),
-            yearlyContributionMonth: +data.get('yearlyContributionMonth'),
-            contributionsEnabled: data.has('contributionsEnabled')
+            contributionPerPaycheck: +contributionData.get('contributionPerPaycheck'),
+            paycheckFrequency: contributionData.get('paycheckFrequency'),
+            yearlyContributionAmount: +contributionData.get('yearlyContributionAmount'),
+            yearlyContributionMonth: +contributionData.get('yearlyContributionMonth'),
+            contributionsEnabled: contributionData.has('contributionsEnabled')
         },
         rsuSettings: {
-            annualGrantValue: +data.get('annualGrantValue'),
-            expectedAnnualGrowthPercent: +data.get('expectedAnnualGrowthPercent'),
-            includeInProjection: data.has('includeInProjection')
+            ticker: (rsuData.get('ticker') || '').toUpperCase(),
+            currentSharePrice: +rsuData.get('currentSharePrice'),
+            currentShares: +rsuData.get('currentShares'),
+            annualGrantShares: +rsuData.get('annualGrantShares'),
+            expectedAnnualGrowthPercent: +rsuData.get('expectedAnnualGrowthPercent'),
+            includeInProjection: rsuData.has('includeInProjection')
         }
     };
     state = await api('/api/scenario', { method: 'PUT', body: JSON.stringify(scenario) });
+    renderForms();
     await refreshProjection();
-};
+}
+
+$('scenarioForm').onsubmit = async event => { event.preventDefault(); await saveScenario(); };
+$('contributionForm').onsubmit = async event => { event.preventDefault(); await saveScenario(); };
+$('rsuForm').onsubmit = async event => { event.preventDefault(); await saveScenario(); setRsuStatus('RSU settings saved.', 'ok'); };
 
 $('years').onchange = refreshProjection;
 $('scenario').onchange = refreshProjection;

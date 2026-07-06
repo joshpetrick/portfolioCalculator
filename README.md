@@ -8,8 +8,8 @@ A local-first Spring Boot web app for tracking stock holdings and forecasting a 
 - Add, edit, delete, and inline-edit holdings. Ticker and shares are required before adding a holding; the display name is optional and can be filled by lookup.
 - Dividend frequency support: monthly, quarterly, semiannual, annual, and none.
 - Per-holding price growth and dividend growth assumptions.
-- Global paycheck and yearly contribution assumptions.
-- RSU forecast section with annual vesting and optional inclusion.
+- Paycheck and yearly contribution assumptions in a dedicated section; projected contributions are invested evenly across all portfolio holdings, including dividend stocks.
+- RSU forecast section with a stock-symbol picker, current RSU share count, estimated annual RSU shares, share price lookup, annual vesting, and optional inclusion.
 - Projection slider for 1-20 years plus scenario selector for base, conservative, and aggressive views.
 - Charts for portfolio value, dividend income, contributions, growth, RSUs, and combined value.
 - Public market-data lookup can fill current share price and estimated dividend information after you enter a ticker. The backend calls the external Yahoo Finance chart API (`query1.finance.yahoo.com/v8/finance/chart/{ticker}`), for example `/api/market-data/RTX`.
@@ -55,8 +55,8 @@ The projection is intentionally simple for an MVP:
 2. Each month compounds expected annual dividend growth into a monthly rate.
 3. Dividends are paid according to the configured frequency.
 4. Reinvested dividends buy fractional shares of the same ticker at the simulated current price.
-5. Recurring paycheck contributions are accumulated monthly and yearly contributions are added in the selected month.
-6. RSUs vest once per year and are tracked separately from the dividend portfolio.
+5. Recurring paycheck contributions and yearly contributions buy fractional shares evenly across all holdings in the regular portfolio.
+6. RSUs use their own ticker/share price, include existing RSU shares, add estimated annual grant shares once per year, and are tracked separately from the dividend portfolio.
 7. Charts show regular portfolio, RSU value, combined value, contributions, dividends, and growth value.
 
 Market-data lookup uses the external Yahoo Finance chart API from your local machine when you click the lookup button. The app still stores data locally and does not require cloud hosting. This is not financial advice.

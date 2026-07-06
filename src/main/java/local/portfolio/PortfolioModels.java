@@ -34,9 +34,17 @@ public class PortfolioModels {
             boolean contributionsEnabled) {}
 
     public record RsuSettings(
-            @PositiveOrZero double annualGrantValue,
+            String ticker,
+            @PositiveOrZero double currentSharePrice,
+            @PositiveOrZero double currentShares,
+            @PositiveOrZero double annualGrantShares,
             double expectedAnnualGrowthPercent,
-            boolean includeInProjection) {}
+            boolean includeInProjection) {
+        public RsuSettings normalized() {
+            String normalizedTicker = ticker == null || ticker.isBlank() ? "" : ticker.toUpperCase(Locale.US);
+            return new RsuSettings(normalizedTicker, currentSharePrice, currentShares, annualGrantShares, expectedAnnualGrowthPercent, includeInProjection);
+        }
+    }
 
     public record Scenario(String id, @NotBlank String name, @Valid Assumptions assumptions, @Valid RsuSettings rsuSettings) {}
     public record PortfolioState(List<@Valid Holding> holdings, @Valid Scenario activeScenario, List<@Valid Scenario> savedScenarios) {}

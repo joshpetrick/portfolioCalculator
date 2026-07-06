@@ -76,7 +76,7 @@ public class PortfolioController {
                 scenario.id() == null || scenario.id().isBlank() ? UUID.randomUUID().toString() : scenario.id(),
                 scenario.name(),
                 scenario.assumptions(),
-                scenario.rsuSettings()
+                scenario.rsuSettings().normalized()
         );
         var saved = new ArrayList<>(state.savedScenarios());
         saved.removeIf(s -> s.id().equals(normalized.id()));
