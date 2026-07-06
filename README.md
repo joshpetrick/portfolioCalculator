@@ -11,7 +11,7 @@ A local-first Spring Boot web app for tracking stock holdings and forecasting a 
 - Per-holding price growth and dividend growth assumptions.
 - Paycheck and yearly contribution assumptions in a dedicated section; projected contributions are invested evenly across all portfolio holdings, including dividend stocks.
 - RSU forecast section with a stock-symbol picker, current RSU share count, estimated annual RSU value, share price lookup, annual vesting, and optional inclusion.
-- Add/edit/delete additional tabs with name, category, type, current value, annual contribution or income, expected growth, and optional stock holdings via ticker lookup.
+- Add/edit/delete additional tabs with a consistent layout: name, category, type, current value, annual contribution or income, expected growth, ticker-based stock holdings, dividend details, and ticker lookup.
 - Projection slider for 1-20 years plus scenario selector for base, conservative, and aggressive views.
 - Charts for portfolio value, dividend income, contributions, growth, RSUs, and combined value.
 - Public market-data lookup can fill current share price and estimated dividend information after you enter a ticker. The backend calls the external Yahoo Finance chart API (`query1.finance.yahoo.com/v8/finance/chart/{ticker}`), for example `/api/market-data/RTX`.
@@ -59,7 +59,7 @@ The projection is intentionally simple for an MVP:
 4. Reinvested dividends buy fractional shares of the same ticker at the simulated current price.
 5. Recurring paycheck contributions and yearly contributions buy fractional shares evenly across all holdings in the regular portfolio.
 6. RSUs use their own ticker/share price, include existing RSU shares, convert estimated annual grant value into shares once per year, and are tracked separately from the dividend portfolio.
-7. Additional tabs such as 401k/HSA/assets/income compound monthly with annual contribution or income assumptions spread across the year; portfolio-style tabs can also hold ticker-based stocks.
+7. Additional tabs such as 401k/HSA/assets/income compound monthly with annual contribution or income assumptions spread across the year; portfolio-style tabs can also hold ticker-based stocks with dividends and reinvestment included in that tab total.
 8. Charts show regular portfolio, RSU value, other accounts, combined value, contributions, dividends, and growth value.
 
 Market-data lookup uses the external Yahoo Finance chart API from your local machine when you click the lookup button. The app still stores data locally and does not require cloud hosting. This is not financial advice.

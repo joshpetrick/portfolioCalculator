@@ -75,8 +75,10 @@ function showTab(tab) {
     $('mainOverview').classList.add('hidden');
     $('accountTab').classList.remove('hidden');
     const holdings = account.holdings || [];
-    const holdingRows = holdings.map(h => `<tr><td>${h.ticker}</td><td>${h.name || h.ticker}</td><td>${h.shares}</td><td>${money(h.currentPrice)}</td><td><button class="danger" onclick="deleteAccountHolding('${account.id}','${h.id}')">Delete</button></td></tr>`).join('');
-    $('accountTab').innerHTML = `<h2>${account.name}</h2><p class="muted">${account.category || ''} · ${account.type || 'Investment account'}</p><div class="cards"><div class="card"><span class="muted">Current value</span><br><b>${money(account.currentValue + holdings.reduce((sum,h)=>sum+h.shares*h.currentPrice,0))}</b></div><div class="card"><span class="muted">Annual contribution/income</span><br><b>${money(account.annualContribution)}</b></div><div class="card"><span class="muted">Expected growth</span><br><b>${account.expectedAnnualGrowthPercent}%</b></div></div><h3>Add stock to this tab</h3><form id="accountHoldingForm" class="form">${field('ticker', 'Ticker symbol', 'text', { required: true, pattern: '[A-Za-z.]{1,10}' })}${field('name', 'Display name', 'text', {})}${field('shares', 'Shares owned', 'number', { required: true, min: 0.000001 })}${field('currentPrice', 'Current share price', 'number', { min: 0 })}<button type="button" onclick="lookupAccountHolding('${account.id}')">Lookup ticker</button><button type="submit">Add stock</button></form><table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Price</th><th></th></tr></thead><tbody>${holdingRows}</tbody></table>`;
+    const holdingRows = holdings.map(h => `<tr><td>${h.ticker}</td><td>${h.name || h.ticker}</td><td>${h.shares}</td><td>${money(h.currentPrice)}</td><td>${money(h.dividendAmount || 0)} / ${h.dividendFrequency || 'NONE'}</td><td>${h.reinvestDividends ? 'Yes' : 'No'}</td><td><button class="danger" onclick="deleteAccountHolding('${account.id}','${h.id}')">Delete</button></td></tr>`).join('');
+    const holdingsValue = holdings.reduce((sum,h)=>sum+h.shares*h.currentPrice,0);
+    const yearlyDividends = holdings.reduce((sum,h)=>sum+h.shares*(h.dividendAmount||0)*paymentsPerYear(h.dividendFrequency),0);
+    $('accountTab').innerHTML = `<h2>${account.name}</h2><p class="muted">${account.category || ''} · ${account.type || 'Investment account'}</p><div class="cards"><div class="card"><span class="muted">Tab total value</span><br><b>${money(account.currentValue + holdingsValue)}</b></div><div class="card"><span class="muted">Yearly dividends</span><br><b>${money(yearlyDividends)}</b></div><div class="card"><span class="muted">Annual contribution/income</span><br><b>${money(account.annualContribution)}</b></div><div class="card"><span class="muted">Expected growth</span><br><b>${account.expectedAnnualGrowthPercent}%</b></div></div><h3>Add stock to this tab</h3><form id="accountHoldingForm" class="form">${field('ticker', 'Ticker symbol', 'text', { required: true, pattern: '[A-Za-z.]{1,10}' })}${field('name', 'Display name', 'text', {})}${field('shares', 'Shares owned', 'number', { required: true, min: 0.000001 })}${field('currentPrice', 'Current share price', 'number', { min: 0 })}${field('dividendAmount', 'Dividend per payment', 'number', { min: 0 })}<label>Dividend frequency<select name="dividendFrequency">${frequencies.map(x => `<option>${x}</option>`).join('')}</select></label><label><input type="checkbox" name="reinvestDividends" checked> Reinvest dividends</label><button type="button" onclick="lookupAccountHolding('${account.id}')">Lookup ticker</button><button type="submit">Add stock</button></form><table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Price</th><th>Dividend</th><th>Reinvest</th><th></th></tr></thead><tbody>${holdingRows}</tbody></table>`;
     $('accountHoldingForm').onsubmit = async event => {
         event.preventDefault();
         const data = new FormData(event.target);
@@ -84,9 +86,9 @@ function showTab(tab) {
         if (!holding.name || !holding.name.trim()) holding.name = holding.ticker;
         holding.shares = Number(holding.shares || 0);
         holding.currentPrice = Number(holding.currentPrice || 0);
-        holding.dividendAmount = 0;
-        holding.dividendFrequency = 'NONE';
-        holding.reinvestDividends = false;
+        holding.dividendAmount = Number(holding.dividendAmount || 0);
+        holding.dividendFrequency = holding.dividendFrequency || 'NONE';
+        holding.reinvestDividends = data.has('reinvestDividends');
         holding.expectedAnnualPriceGrowthPercent = account.expectedAnnualGrowthPercent || 6;
         holding.expectedAnnualDividendGrowthPercent = 0;
         state = await api(`/api/accounts/${account.id}/holdings`, { method: 'POST', body: JSON.stringify(holding) });
@@ -230,6 +232,8 @@ async function lookupQuote() {
         form.elements.ticker.value = quote.ticker;
         form.elements.name.value = quote.name;
         form.elements.currentPrice.value = quote.currentPrice || 0;
+    if (form.elements.dividendAmount) form.elements.dividendAmount.value = quote.dividendAmount || 0;
+    if (form.elements.dividendFrequency) form.elements.dividendFrequency.value = quote.dividendFrequency || 'NONE';
         form.elements.dividendAmount.value = quote.dividendAmount || 0;
         form.elements.dividendFrequency.value = quote.dividendFrequency;
         setStatus(`Filled ${quote.ticker} at ${money(quote.currentPrice)} with estimated ${quote.dividendFrequency.toLowerCase()} dividend data from the external Yahoo Finance chart API.`, 'ok');
@@ -386,6 +390,8 @@ async function lookupAccountHolding(accountId) {
     form.elements.ticker.value = quote.ticker;
     form.elements.name.value = quote.name;
     form.elements.currentPrice.value = quote.currentPrice || 0;
+    form.elements.dividendAmount.value = quote.dividendAmount || 0;
+    form.elements.dividendFrequency.value = quote.dividendFrequency || 'NONE';
 }
 
 async function deleteAccountHolding(accountId, holdingId) {

@@ -117,6 +117,16 @@ public class ProjectionService {
         };
     }
 
+    private static double paymentsPerMonth(DividendFrequency f) {
+        return switch (f) {
+            case MONTHLY -> 1.0;
+            case QUARTERLY -> 1.0 / 3.0;
+            case SEMIANNUAL -> 1.0 / 6.0;
+            case ANNUAL -> 1.0 / 12.0;
+            case NONE -> 0.0;
+        };
+    }
+
     private boolean paysDividend(DividendFrequency f, int month) {
         return switch (f) {
             case MONTHLY -> true;
@@ -172,6 +182,10 @@ public class ProjectionService {
             for (HoldingRuntime holding : holdings) {
                 holding.price *= Math.pow(1 + holding.priceGrowth / 100.0, 1.0 / 12.0);
                 holding.dividend *= Math.pow(1 + holding.dividendGrowth / 100.0, 1.0 / 12.0);
+                if (holding.reinvest && holding.price > 0) {
+                    double monthlyDividend = holding.shares * holding.dividend * paymentsPerMonth(holding.frequency);
+                    holding.shares += monthlyDividend / holding.price;
+                }
             }
         }
 
