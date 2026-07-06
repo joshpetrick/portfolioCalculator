@@ -47,17 +47,12 @@ function renderCurrentDashboard() {
     const currentPortfolioValue = state.holdings.reduce((sum, h) => sum + h.shares * h.currentPrice, 0);
     const currentRsuValue = rsu.includeInProjection ? rsu.currentShares * rsu.currentSharePrice : 0;
     const currentYearlyDividend = state.holdings.reduce((sum, h) => sum + h.shares * h.dividendAmount * paymentsPerYear(h.dividendFrequency), 0);
-    $('currentDashboard').innerHTML = [
-        ['Current stock portfolio', money(currentPortfolioValue)],
-        ['Current RSU value', money(currentRsuValue)],
-        ['Current other accounts', money(accountsCurrentValue())],
-        ['Current yearly dividends', money(currentYearlyDividend)]
-    ].map(item => `<div class="card"><span class="muted">${item[0]}</span><br><b>${item[1]}</b></div>`).join('');
+    $('currentDashboard').innerHTML = `<div class="card"><span class="muted">Total overall current value</span><br><b>${money(currentPortfolioValue + currentRsuValue + accountsCurrentValue())}</b></div><div class="card"><span class="muted">Current yearly dividends</span><br><b>${money(currentYearlyDividend)}</b></div>`;
 }
 
 
 function accountsCurrentValue() {
-    return (state.accounts || []).reduce((sum, account) => sum + account.currentValue, 0);
+    return (state.accounts || []).reduce((sum, account) => sum + account.currentValue + ((account.holdings || []).reduce((hSum, h) => hSum + h.shares * h.currentPrice, 0)), 0);
 }
 
 function renderTabs(active = 'overview') {
@@ -77,18 +72,31 @@ function showTab(tab) {
     if (!account) return;
     $('mainOverview').classList.add('hidden');
     $('accountTab').classList.remove('hidden');
-    $('accountTab').innerHTML = `<h2>${account.name}</h2><p class="muted">${account.type || 'Investment account'}</p><div class="cards"><div class="card"><span class="muted">Current value</span><br><b>${money(account.currentValue)}</b></div><div class="card"><span class="muted">Annual contribution</span><br><b>${money(account.annualContribution)}</b></div><div class="card"><span class="muted">Expected growth</span><br><b>${account.expectedAnnualGrowthPercent}%</b></div></div><p>Edit this account from the Other investment accounts panel on the Overview tab.</p>`;
+    const holdings = account.holdings || [];
+    const holdingRows = holdings.map(h => `<tr><td>${h.ticker}</td><td>${h.name || h.ticker}</td><td>${h.shares}</td><td>${money(h.currentPrice)}</td><td><button class="danger" onclick="deleteAccountHolding('${account.id}','${h.id}')">Delete</button></td></tr>`).join('');
+    $('accountTab').innerHTML = `<h2>${account.name}</h2><p class="muted">${account.category || ''} · ${account.type || 'Investment account'}</p><div class="cards"><div class="card"><span class="muted">Current value</span><br><b>${money(account.currentValue + holdings.reduce((sum,h)=>sum+h.shares*h.currentPrice,0))}</b></div><div class="card"><span class="muted">Annual contribution/income</span><br><b>${money(account.annualContribution)}</b></div><div class="card"><span class="muted">Expected growth</span><br><b>${account.expectedAnnualGrowthPercent}%</b></div></div><h3>Add stock to this tab</h3><form id="accountHoldingForm" class="form">${field('ticker', 'Ticker symbol', 'text', { required: true, pattern: '[A-Za-z.]{1,10}' })}${field('name', 'Display name', 'text', {})}${field('shares', 'Shares owned', 'number', { required: true, min: 0.000001 })}${field('currentPrice', 'Current share price', 'number', { min: 0 })}<button type="button" onclick="lookupAccountHolding('${account.id}')">Lookup ticker</button><button type="submit">Add stock</button></form><table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Price</th><th></th></tr></thead><tbody>${holdingRows}</tbody></table>`;
+    $('accountHoldingForm').onsubmit = async event => {
+        event.preventDefault();
+        const data = new FormData(event.target);
+        const holding = Object.fromEntries(data);
+        if (!holding.name || !holding.name.trim()) holding.name = holding.ticker;
+        holding.shares = Number(holding.shares || 0);
+        holding.currentPrice = Number(holding.currentPrice || 0);
+        holding.dividendAmount = 0;
+        holding.dividendFrequency = 'NONE';
+        holding.reinvestDividends = false;
+        holding.expectedAnnualPriceGrowthPercent = account.expectedAnnualGrowthPercent || 6;
+        holding.expectedAnnualDividendGrowthPercent = 0;
+        state = await api(`/api/accounts/${account.id}/holdings`, { method: 'POST', body: JSON.stringify(holding) });
+        renderTabs(account.id);
+        showTab(account.id);
+        await refreshProjection();
+    };
 }
 
 function renderDashboard() {
     const s = projection.summary;
-    $('dashboard').innerHTML = [
-        ['Portfolio value', money(s.portfolioValue)],
-        ['Dividend income', money(s.dividendIncome)],
-        ['Total contributions', money(s.contributions)],
-        ['Total RSU value', money(s.rsuValue)],
-        ['Combined net value', money(s.combinedValue)]
-    ].map(item => `<div class="card"><span class="muted">${item[0]}</span><br><b>${item[1]}</b></div>`).join('');
+    $('dashboard').innerHTML = `<div class="card"><span class="muted">Total overall projected value</span><br><b>${money(s.combinedValue)}</b></div><div class="card"><span class="muted">Projected dividend income</span><br><b>${money(s.dividendIncome)}</b></div>`;
 
     $('dividendSummary').innerHTML = `Projected cumulative income: <b>${money(s.dividendIncome)}</b><br>Current annual run-rate estimate: <b>${money(state.holdings.reduce((sum, h) => sum + h.shares * h.dividendAmount * paymentsPerYear(h.dividendFrequency), 0))}</b>`;
     const rsu = normalizedRsu();
@@ -186,7 +194,8 @@ function renderForms() {
 
     $('accountForm').innerHTML = `
         <label>Name<input name="name" required placeholder="401k"></label>
-        <label>Type<input name="type" placeholder="Retirement / HSA / Brokerage"></label>
+        <label>Category<input name="category" placeholder="Retirement / Asset / Income"></label>
+        <label>Type<select name="type"><option>Portfolio</option><option>Asset</option><option>Income</option><option>Retirement</option><option>HSA</option></select></label>
         <label>Current value<input name="currentValue" type="number" step="any" min="0" value="0"></label>
         <label>Annual contribution<input name="annualContribution" type="number" step="any" min="0" value="0"></label>
         <label>Expected growth %<input name="expectedAnnualGrowthPercent" type="number" step="any" value="6"></label>
@@ -300,7 +309,7 @@ async function editAccount(id) {
     if (!account) return;
     const name = prompt('Account name', account.name) || account.name;
     const currentValue = Number(prompt('Current value', account.currentValue) || account.currentValue);
-    const annualContribution = Number(prompt('Annual contribution', account.annualContribution) || account.annualContribution);
+    const annualContribution = Number(prompt('Annual contribution/income', account.annualContribution) || account.annualContribution);
     const expectedAnnualGrowthPercent = Number(prompt('Expected annual growth %', account.expectedAnnualGrowthPercent) || account.expectedAnnualGrowthPercent);
     state = await api(`/api/accounts/${id}`, { method: 'PUT', body: JSON.stringify({ ...account, name, currentValue, annualContribution, expectedAnnualGrowthPercent }) });
     renderTabs();
@@ -364,11 +373,30 @@ async function saveScenario() {
 }
 
 
+
+async function lookupAccountHolding(accountId) {
+    const form = $('accountHoldingForm');
+    const ticker = form.elements.ticker.value.trim();
+    if (!ticker) return form.elements.ticker.reportValidity();
+    const quote = await api(`/api/market-data/${encodeURIComponent(ticker)}`);
+    form.elements.ticker.value = quote.ticker;
+    form.elements.name.value = quote.name;
+    form.elements.currentPrice.value = quote.currentPrice || 0;
+}
+
+async function deleteAccountHolding(accountId, holdingId) {
+    state = await api(`/api/accounts/${accountId}/holdings/${holdingId}`, { method: 'DELETE' });
+    renderTabs(accountId);
+    showTab(accountId);
+    await refreshProjection();
+}
+
 $('accountForm').onsubmit = async event => {
     event.preventDefault();
     const data = new FormData(event.target);
     const account = {
         name: data.get('name'),
+        category: data.get('category'),
         type: data.get('type'),
         currentValue: +data.get('currentValue'),
         annualContribution: +data.get('annualContribution'),

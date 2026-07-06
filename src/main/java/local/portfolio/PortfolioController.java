@@ -74,7 +74,7 @@ public class PortfolioController {
     PortfolioState addAccount(@Valid @RequestBody InvestmentAccount account) {
         var state = store.load();
         var accounts = new ArrayList<>(state.accounts());
-        accounts.add(new InvestmentAccount(UUID.randomUUID().toString(), account.name(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent()));
+        accounts.add(new InvestmentAccount(UUID.randomUUID().toString(), account.name(), account.category(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent(), account.holdings()).normalized());
         return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
     }
 
@@ -82,7 +82,7 @@ public class PortfolioController {
     PortfolioState updateAccount(@PathVariable("id") String id, @Valid @RequestBody InvestmentAccount account) {
         var state = store.load();
         var accounts = state.accounts().stream()
-                .map(a -> a.id().equals(id) ? new InvestmentAccount(id, account.name(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent()) : a)
+                .map(a -> a.id().equals(id) ? new InvestmentAccount(id, account.name(), account.category(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent(), account.holdings()).normalized() : a)
                 .toList();
         return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
     }
@@ -91,6 +91,30 @@ public class PortfolioController {
     PortfolioState deleteAccount(@PathVariable("id") String id) {
         var state = store.load();
         var accounts = state.accounts().stream().filter(a -> !a.id().equals(id)).toList();
+        return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
+    }
+
+
+    @PostMapping("/accounts/{id}/holdings")
+    PortfolioState addAccountHolding(@PathVariable("id") String id, @Valid @RequestBody Holding holding) {
+        var state = store.load();
+        var accounts = state.accounts().stream().map(account -> {
+            if (!account.id().equals(id)) return account;
+            var holdings = new ArrayList<>(account.normalized().holdings());
+            holdings.add(holding.withId(UUID.randomUUID().toString()));
+            return new InvestmentAccount(account.id(), account.name(), account.category(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent(), holdings).normalized();
+        }).toList();
+        return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
+    }
+
+    @DeleteMapping("/accounts/{accountId}/holdings/{holdingId}")
+    PortfolioState deleteAccountHolding(@PathVariable("accountId") String accountId, @PathVariable("holdingId") String holdingId) {
+        var state = store.load();
+        var accounts = state.accounts().stream().map(account -> {
+            if (!account.id().equals(accountId)) return account;
+            var holdings = account.normalized().holdings().stream().filter(h -> !h.id().equals(holdingId)).toList();
+            return new InvestmentAccount(account.id(), account.name(), account.category(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent(), holdings).normalized();
+        }).toList();
         return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
     }
 

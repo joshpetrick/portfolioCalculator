@@ -56,8 +56,8 @@ public class ProjectionService {
             }
 
             for (AccountRuntime account : accounts) {
-                account.value *= Math.pow(1 + account.growth / 100.0, 1.0 / 12.0);
-                account.value += account.annualContribution / 12.0;
+                account.applyMonthlyGrowth();
+                account.applyMonthlyContribution();
             }
 
             double portfolio = holdings.stream().mapToDouble(HoldingRuntime::value).sum();
@@ -157,15 +157,39 @@ public class ProjectionService {
 
     static class AccountRuntime {
         double value, annualContribution, growth;
+        List<HoldingRuntime> holdings;
 
         AccountRuntime(InvestmentAccount account, double scenarioGrowthBump) {
-            value = account.currentValue();
-            annualContribution = account.annualContribution();
-            growth = account.expectedAnnualGrowthPercent() + scenarioGrowthBump;
+            InvestmentAccount normalized = account.normalized();
+            value = normalized.currentValue();
+            annualContribution = normalized.annualContribution();
+            growth = normalized.expectedAnnualGrowthPercent() + scenarioGrowthBump;
+            holdings = normalized.holdings().stream().map(h -> new HoldingRuntime(h, scenarioGrowthBump)).toList();
+        }
+
+        void applyMonthlyGrowth() {
+            value *= Math.pow(1 + growth / 100.0, 1.0 / 12.0);
+            for (HoldingRuntime holding : holdings) {
+                holding.price *= Math.pow(1 + holding.priceGrowth / 100.0, 1.0 / 12.0);
+                holding.dividend *= Math.pow(1 + holding.dividendGrowth / 100.0, 1.0 / 12.0);
+            }
+        }
+
+        void applyMonthlyContribution() {
+            double monthly = annualContribution / 12.0;
+            if (monthly <= 0) return;
+            if (holdings.isEmpty()) {
+                value += monthly;
+                return;
+            }
+            double allocation = monthly / holdings.size();
+            for (HoldingRuntime holding : holdings) {
+                if (holding.price > 0) holding.shares += allocation / holding.price;
+            }
         }
 
         double value() {
-            return value;
+            return value + holdings.stream().mapToDouble(HoldingRuntime::value).sum();
         }
     }
 

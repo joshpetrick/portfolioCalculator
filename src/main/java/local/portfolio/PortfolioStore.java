@@ -41,7 +41,7 @@ public class PortfolioStore {
                 loaded.holdings() == null ? new ArrayList<>() : loaded.holdings(),
                 loaded.activeScenario(),
                 loaded.savedScenarios() == null ? new ArrayList<>() : loaded.savedScenarios(),
-                loaded.accounts() == null ? new ArrayList<>() : loaded.accounts()
+                loaded.accounts() == null ? new ArrayList<>() : loaded.accounts().stream().map(InvestmentAccount::normalized).toList()
         );
     }
 
@@ -54,8 +54,8 @@ public class PortfolioStore {
         var base = new Scenario(UUID.randomUUID().toString(), "Base plan", new Assumptions(350, PaycheckFrequency.BIWEEKLY, 6500, 1, true), new RsuSettings("MSFT", 420, 15, 20000, 5.0, true));
         var conservative = new Scenario(UUID.randomUUID().toString(), "Conservative", new Assumptions(250, PaycheckFrequency.BIWEEKLY, 3000, 1, true), new RsuSettings("MSFT", 420, 10, 12000, 2.0, true));
         var accounts = new ArrayList<>(List.of(
-                new InvestmentAccount(UUID.randomUUID().toString(), "401k", "Retirement", 85000, 23000, 7.0),
-                new InvestmentAccount(UUID.randomUUID().toString(), "HSA", "Health savings", 12000, 4300, 6.0)
+                new InvestmentAccount(UUID.randomUUID().toString(), "401k", "Retirement", "Retirement", 85000, 23000, 7.0, new ArrayList<>()),
+                new InvestmentAccount(UUID.randomUUID().toString(), "HSA", "Health savings", "HSA", 12000, 4300, 6.0, new ArrayList<>())
         ));
         return new PortfolioState(new ArrayList<>(holdings), base, new ArrayList<>(List.of(base, conservative)), accounts);
     }
