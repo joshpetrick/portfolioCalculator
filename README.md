@@ -1,2 +1,62 @@
-# portfolioCalculator
-Takes in current portfolio and allows you to update for future
+# Portfolio Calculator
+
+A local-first Spring Boot web app for tracking stock holdings and forecasting a personal portfolio with dividend reinvestment, recurring contributions, yearly contributions, and RSU grants.
+
+## Features
+
+- Dashboard with projected portfolio value, dividends, share count, contributions, RSUs, and combined net value.
+- Add, edit, delete, and inline-edit holdings. Ticker, company/name, and shares are required before adding a holding.
+- Dividend frequency support: monthly, quarterly, semiannual, annual, and none.
+- Per-holding price growth and dividend growth assumptions.
+- Global paycheck and yearly contribution assumptions.
+- RSU forecast section with annual vesting and optional inclusion.
+- Projection slider for 1-20 years plus scenario selector for base, conservative, and aggressive views.
+- Charts for portfolio value, dividend income, contributions, growth, RSUs, and combined value.
+- Public market-data lookup can fill current share price and estimated dividend information after you enter a ticker.
+- CSV export for holdings and projection results.
+- Dark mode and seed/example data.
+- Local JSON persistence at `~/.portfolio-calculator/portfolio-data.json`.
+
+## Requirements
+
+- Java 17+
+- Maven 3.9+ or IntelliJ IDEA with Maven support
+
+## Run from the command line
+
+```bash
+mvn spring-boot:run
+```
+
+Open <http://localhost:8080>.
+
+## Run in IntelliJ
+
+1. Open this folder as a Maven project.
+2. Use Java 17 or newer for the project SDK.
+3. Run `local.portfolio.PortfolioCalculatorApplication`.
+4. Open <http://localhost:8080>.
+
+## Data storage
+
+The app creates seed data the first time it starts and persists changes to:
+
+```text
+~/.portfolio-calculator/portfolio-data.json
+```
+
+Delete that file to reset to the bundled example portfolio.
+
+## Projection model
+
+The projection is intentionally simple for an MVP:
+
+1. Each month compounds each holding's expected annual share-price growth into a monthly rate.
+2. Each month compounds expected annual dividend growth into a monthly rate.
+3. Dividends are paid according to the configured frequency.
+4. Reinvested dividends buy fractional shares of the same ticker at the simulated current price.
+5. Recurring paycheck contributions are accumulated monthly and yearly contributions are added in the selected month.
+6. RSUs vest once per year and are tracked separately from the dividend portfolio.
+7. Charts show regular portfolio, RSU value, combined value, contributions, dividends, and growth value.
+
+Market-data lookup uses Yahoo Finance public quote data from your local machine when you click the lookup button. The app still stores data locally and does not require cloud hosting. This is not financial advice.
