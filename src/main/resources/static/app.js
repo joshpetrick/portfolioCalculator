@@ -25,8 +25,10 @@ async function api(url, opts) {
 async function load() {
     state = await api('/api/portfolio');
     renderForms();
+    renderTabs();
     await refreshProjection();
     renderHoldings();
+    renderAccounts();
 }
 
 async function refreshProjection() {
@@ -48,8 +50,34 @@ function renderCurrentDashboard() {
     $('currentDashboard').innerHTML = [
         ['Current stock portfolio', money(currentPortfolioValue)],
         ['Current RSU value', money(currentRsuValue)],
+        ['Current other accounts', money(accountsCurrentValue())],
         ['Current yearly dividends', money(currentYearlyDividend)]
     ].map(item => `<div class="card"><span class="muted">${item[0]}</span><br><b>${item[1]}</b></div>`).join('');
+}
+
+
+function accountsCurrentValue() {
+    return (state.accounts || []).reduce((sum, account) => sum + account.currentValue, 0);
+}
+
+function renderTabs(active = 'overview') {
+    const accountTabs = (state.accounts || []).map(account => `<button type="button" data-tab="${account.id}" class="${active === account.id ? 'active' : ''}">${account.name}</button>`).join('');
+    $('tabBar').innerHTML = `<button type="button" data-tab="overview" class="${active === 'overview' ? 'active' : ''}">Overview</button><button type="button" data-tab="stock" class="${active === 'stock' ? 'active' : ''}">Funny money + company</button>${accountTabs}`;
+    document.querySelectorAll('#tabBar button').forEach(button => button.onclick = () => showTab(button.dataset.tab));
+}
+
+function showTab(tab) {
+    renderTabs(tab);
+    if (tab === 'overview' || tab === 'stock') {
+        $('mainOverview').classList.remove('hidden');
+        $('accountTab').classList.add('hidden');
+        return;
+    }
+    const account = (state.accounts || []).find(a => a.id === tab);
+    if (!account) return;
+    $('mainOverview').classList.add('hidden');
+    $('accountTab').classList.remove('hidden');
+    $('accountTab').innerHTML = `<h2>${account.name}</h2><p class="muted">${account.type || 'Investment account'}</p><div class="cards"><div class="card"><span class="muted">Current value</span><br><b>${money(account.currentValue)}</b></div><div class="card"><span class="muted">Annual contribution</span><br><b>${money(account.annualContribution)}</b></div><div class="card"><span class="muted">Expected growth</span><br><b>${account.expectedAnnualGrowthPercent}%</b></div></div><p>Edit this account from the Other investment accounts panel on the Overview tab.</p>`;
 }
 
 function renderDashboard() {
@@ -57,7 +85,6 @@ function renderDashboard() {
     $('dashboard').innerHTML = [
         ['Portfolio value', money(s.portfolioValue)],
         ['Dividend income', money(s.dividendIncome)],
-        ['Projected shares', s.shareCount.toFixed(2)],
         ['Total contributions', money(s.contributions)],
         ['Total RSU value', money(s.rsuValue)],
         ['Combined net value', money(s.combinedValue)]
@@ -97,6 +124,7 @@ function renderCharts() {
             datasets: [
                 ds('Portfolio', projection.points.map(p => p.portfolioValue), '#2563eb'),
                 ds('RSUs', projection.points.map(p => p.rsuValue), '#14b8a6'),
+                ds('Other accounts', projection.points.map(p => p.otherAccountsValue || 0), '#ec4899'),
                 ds('Combined', projection.points.map(p => p.combinedValue), '#f59e0b'),
                 ds('Contributions', projection.points.map(p => p.contributions), '#8b5cf6')
             ]
@@ -155,6 +183,14 @@ function renderForms() {
         <label>RSU annual growth %<input name="expectedAnnualGrowthPercent" type="number" step="any" value="${rsu.expectedAnnualGrowthPercent}"></label>
         <label><input name="includeInProjection" type="checkbox" ${rsu.includeInProjection ? 'checked' : ''}> Include RSUs</label>
         <div class="form-actions"><button id="lookupRsuQuote" class="secondary" type="button">Lookup RSU stock price</button><button type="submit">Save RSUs</button></div>`;
+
+    $('accountForm').innerHTML = `
+        <label>Name<input name="name" required placeholder="401k"></label>
+        <label>Type<input name="type" placeholder="Retirement / HSA / Brokerage"></label>
+        <label>Current value<input name="currentValue" type="number" step="any" min="0" value="0"></label>
+        <label>Annual contribution<input name="annualContribution" type="number" step="any" min="0" value="0"></label>
+        <label>Expected growth %<input name="expectedAnnualGrowthPercent" type="number" step="any" value="6"></label>
+        <button type="submit">Add account tab</button>`;
 
     $('lookupQuote').onclick = lookupQuote;
     $('lookupRsuQuote').onclick = lookupRsuQuote;
@@ -249,6 +285,36 @@ async function del(id) {
     renderHoldings();
 }
 
+
+function renderAccounts() {
+    $('accountsList').innerHTML = `<div class="account-list">${(state.accounts || []).map(account => `
+        <div class="account-row">
+            <b>${account.name}</b> <span class="muted">${account.type || ''}</span><br>
+            Current: ${money(account.currentValue)} · Annual contribution: ${money(account.annualContribution)} · Growth: ${account.expectedAnnualGrowthPercent}%<br>
+            <button type="button" onclick="editAccount('${account.id}')">Edit</button> <button type="button" class="danger" onclick="deleteAccount('${account.id}')">Delete</button>
+        </div>`).join('')}</div>`;
+}
+
+async function editAccount(id) {
+    const account = (state.accounts || []).find(a => a.id === id);
+    if (!account) return;
+    const name = prompt('Account name', account.name) || account.name;
+    const currentValue = Number(prompt('Current value', account.currentValue) || account.currentValue);
+    const annualContribution = Number(prompt('Annual contribution', account.annualContribution) || account.annualContribution);
+    const expectedAnnualGrowthPercent = Number(prompt('Expected annual growth %', account.expectedAnnualGrowthPercent) || account.expectedAnnualGrowthPercent);
+    state = await api(`/api/accounts/${id}`, { method: 'PUT', body: JSON.stringify({ ...account, name, currentValue, annualContribution, expectedAnnualGrowthPercent }) });
+    renderTabs();
+    renderAccounts();
+    await refreshProjection();
+}
+
+async function deleteAccount(id) {
+    state = await api(`/api/accounts/${id}`, { method: 'DELETE' });
+    renderTabs();
+    renderAccounts();
+    await refreshProjection();
+}
+
 $('holdingForm').onsubmit = async event => {
     event.preventDefault();
     const form = event.target;
@@ -297,6 +363,24 @@ async function saveScenario() {
     await refreshProjection();
 }
 
+
+$('accountForm').onsubmit = async event => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const account = {
+        name: data.get('name'),
+        type: data.get('type'),
+        currentValue: +data.get('currentValue'),
+        annualContribution: +data.get('annualContribution'),
+        expectedAnnualGrowthPercent: +data.get('expectedAnnualGrowthPercent')
+    };
+    state = await api('/api/accounts', { method: 'POST', body: JSON.stringify(account) });
+    event.target.reset();
+    renderTabs();
+    renderAccounts();
+    await refreshProjection();
+};
+
 $('scenarioForm').onsubmit = async event => { event.preventDefault(); await saveScenario(); };
 $('contributionForm').onsubmit = async event => { event.preventDefault(); await saveScenario(); };
 $('rsuForm').onsubmit = async event => { event.preventDefault(); await saveScenario(); setRsuStatus('RSU settings saved.', 'ok'); };
@@ -305,6 +389,6 @@ $('years').onchange = refreshProjection;
 $('scenario').onchange = refreshProjection;
 $('slider').oninput = event => { $('years').value = event.target.value; refreshProjection(); };
 $('theme').onclick = () => document.body.classList.toggle('dark');
-$('duplicate').onclick = async () => { state = await api('/api/scenario/duplicate', { method: 'POST' }); renderForms(); await refreshProjection(); };
+$('duplicate').onclick = async () => { state = await api('/api/scenario/duplicate', { method: 'POST' }); renderForms(); renderTabs(); renderAccounts(); await refreshProjection(); };
 
 load();

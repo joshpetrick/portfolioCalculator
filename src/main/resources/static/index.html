@@ -16,6 +16,9 @@
     <button id="theme" type="button">☀️ Toggle theme</button>
 </header>
 <main>
+    <nav id="tabBar" class="tabs"></nav>
+    <section id="accountTab" class="panel hidden"></section>
+    <div id="mainOverview">
     <section class="cards" id="currentDashboard"></section>
     <section class="cards" id="dashboard"></section>
 
@@ -77,7 +80,9 @@
     <section class="grid">
         <div class="panel"><h2>Dividend income summary</h2><div id="dividendSummary"></div></div>
         <div class="panel"><h2>RSU summary</h2><div id="rsuSummary"></div></div>
+        <div class="panel"><h2>Other investment accounts</h2><form id="accountForm" class="form"></form><div id="accountsList"></div></div>
     </section>
+    </div>
 </main>
 <script src="app.js"></script>
 </body>

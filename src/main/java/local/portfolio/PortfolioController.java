@@ -48,7 +48,7 @@ public class PortfolioController {
         var state = store.load();
         var holdings = new ArrayList<>(state.holdings());
         holdings.add(holding.withId(UUID.randomUUID().toString()));
-        return store.save(new PortfolioState(holdings, state.activeScenario(), state.savedScenarios()));
+        return store.save(new PortfolioState(holdings, state.activeScenario(), state.savedScenarios(), state.accounts()));
     }
 
     @PutMapping("/holdings/{id}")
@@ -57,7 +57,7 @@ public class PortfolioController {
         var holdings = state.holdings().stream()
                 .map(h -> h.id().equals(id) ? holding.withId(id) : h)
                 .toList();
-        return store.save(new PortfolioState(holdings, state.activeScenario(), state.savedScenarios()));
+        return store.save(new PortfolioState(holdings, state.activeScenario(), state.savedScenarios(), state.accounts()));
     }
 
     @DeleteMapping("/holdings/{id}")
@@ -66,7 +66,32 @@ public class PortfolioController {
         var holdings = state.holdings().stream()
                 .filter(h -> !h.id().equals(id))
                 .toList();
-        return store.save(new PortfolioState(holdings, state.activeScenario(), state.savedScenarios()));
+        return store.save(new PortfolioState(holdings, state.activeScenario(), state.savedScenarios(), state.accounts()));
+    }
+
+
+    @PostMapping("/accounts")
+    PortfolioState addAccount(@Valid @RequestBody InvestmentAccount account) {
+        var state = store.load();
+        var accounts = new ArrayList<>(state.accounts());
+        accounts.add(new InvestmentAccount(UUID.randomUUID().toString(), account.name(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent()));
+        return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
+    }
+
+    @PutMapping("/accounts/{id}")
+    PortfolioState updateAccount(@PathVariable("id") String id, @Valid @RequestBody InvestmentAccount account) {
+        var state = store.load();
+        var accounts = state.accounts().stream()
+                .map(a -> a.id().equals(id) ? new InvestmentAccount(id, account.name(), account.type(), account.currentValue(), account.annualContribution(), account.expectedAnnualGrowthPercent()) : a)
+                .toList();
+        return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
+    }
+
+    @DeleteMapping("/accounts/{id}")
+    PortfolioState deleteAccount(@PathVariable("id") String id) {
+        var state = store.load();
+        var accounts = state.accounts().stream().filter(a -> !a.id().equals(id)).toList();
+        return store.save(new PortfolioState(state.holdings(), state.activeScenario(), state.savedScenarios(), accounts));
     }
 
     @PutMapping("/scenario")
@@ -81,7 +106,7 @@ public class PortfolioController {
         var saved = new ArrayList<>(state.savedScenarios());
         saved.removeIf(s -> s.id().equals(normalized.id()));
         saved.add(normalized);
-        return store.save(new PortfolioState(state.holdings(), normalized, saved));
+        return store.save(new PortfolioState(state.holdings(), normalized, saved, state.accounts()));
     }
 
     @PostMapping("/scenario/duplicate")
@@ -91,7 +116,7 @@ public class PortfolioController {
         var copy = new Scenario(UUID.randomUUID().toString(), s.name() + " copy", s.assumptions(), s.rsuSettings());
         var saved = new ArrayList<>(state.savedScenarios());
         saved.add(copy);
-        return store.save(new PortfolioState(state.holdings(), copy, saved));
+        return store.save(new PortfolioState(state.holdings(), copy, saved, state.accounts()));
     }
 
     @GetMapping("/projection")
@@ -111,9 +136,9 @@ public class PortfolioController {
 
     @GetMapping(value = "/export/projection.csv", produces = "text/csv")
     ResponseEntity<String> exportProjection(@RequestParam(name = "years", defaultValue = "10") int years) {
-        String header = "Month,Year,Portfolio Value,Dividend Income,Share Count,Contributions,RSU Value,Combined Value,Growth Value\n";
+        String header = "Month,Year,Portfolio Value,Dividend Income,Share Count,Contributions,RSU Value,Other Accounts Value,Combined Value,Growth Value\n";
         String rows = projections.project(store.load(), years, "base").points().stream()
-                .map(p -> csv(p.month(), p.year(), p.portfolioValue(), p.dividendIncome(), p.shareCount(), p.contributions(), p.rsuValue(), p.combinedValue(), p.growthValue()))
+                .map(p -> csv(p.month(), p.year(), p.portfolioValue(), p.dividendIncome(), p.shareCount(), p.contributions(), p.rsuValue(), p.otherAccountsValue(), p.combinedValue(), p.growthValue()))
                 .collect(Collectors.joining("\n"));
         return csvResponse("projection.csv", header + rows + "\n");
     }

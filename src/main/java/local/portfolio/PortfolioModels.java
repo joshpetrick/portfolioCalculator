@@ -47,9 +47,10 @@ public class PortfolioModels {
     }
 
     public record Scenario(String id, @NotBlank String name, @Valid Assumptions assumptions, @Valid RsuSettings rsuSettings) {}
-    public record PortfolioState(List<@Valid Holding> holdings, @Valid Scenario activeScenario, List<@Valid Scenario> savedScenarios) {}
+    public record InvestmentAccount(String id, @NotBlank String name, String type, @PositiveOrZero double currentValue, @PositiveOrZero double annualContribution, double expectedAnnualGrowthPercent) {}
+    public record PortfolioState(List<@Valid Holding> holdings, @Valid Scenario activeScenario, List<@Valid Scenario> savedScenarios, List<@Valid InvestmentAccount> accounts) {}
     public record ProjectionRequest(int years, Double customYears, String scenario) {}
-    public record ProjectionPoint(int month, int year, double portfolioValue, double dividendIncome, double shareCount, double contributions, double rsuValue, double combinedValue, double growthValue) {}
+    public record ProjectionPoint(int month, int year, double portfolioValue, double dividendIncome, double shareCount, double contributions, double rsuValue, double otherAccountsValue, double combinedValue, double growthValue) {}
     public record ProjectionResult(String scenario, List<ProjectionPoint> points, ProjectionPoint summary) {}
     public record QuoteInfo(String ticker, String name, double currentPrice, double dividendAmount, DividendFrequency dividendFrequency, double annualDividendRate, String currency) {}
 }

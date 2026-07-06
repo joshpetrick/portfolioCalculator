@@ -21,7 +21,7 @@ public class PortfolioStore {
     public synchronized PortfolioState load() {
         if (state != null) return state;
         try {
-            if (Files.exists(dataFile)) state = mapper.readValue(dataFile.toFile(), PortfolioState.class);
+            if (Files.exists(dataFile)) state = normalize(mapper.readValue(dataFile.toFile(), PortfolioState.class));
             else { state = seed(); save(state); }
             return state;
         } catch (IOException e) { throw new IllegalStateException("Unable to load portfolio data", e); }
@@ -36,6 +36,15 @@ public class PortfolioStore {
         } catch (IOException e) { throw new IllegalStateException("Unable to save portfolio data", e); }
     }
 
+    private PortfolioState normalize(PortfolioState loaded) {
+        return new PortfolioState(
+                loaded.holdings() == null ? new ArrayList<>() : loaded.holdings(),
+                loaded.activeScenario(),
+                loaded.savedScenarios() == null ? new ArrayList<>() : loaded.savedScenarios(),
+                loaded.accounts() == null ? new ArrayList<>() : loaded.accounts()
+        );
+    }
+
     private PortfolioState seed() {
         var holdings = List.of(
                 new Holding(UUID.randomUUID().toString(), "VTI", "Vanguard Total Stock Market ETF", 25, 260, 0.91, DividendFrequency.QUARTERLY, true, 7.0, 4.0),
@@ -44,6 +53,10 @@ public class PortfolioStore {
         );
         var base = new Scenario(UUID.randomUUID().toString(), "Base plan", new Assumptions(350, PaycheckFrequency.BIWEEKLY, 6500, 1, true), new RsuSettings("MSFT", 420, 15, 20000, 5.0, true));
         var conservative = new Scenario(UUID.randomUUID().toString(), "Conservative", new Assumptions(250, PaycheckFrequency.BIWEEKLY, 3000, 1, true), new RsuSettings("MSFT", 420, 10, 12000, 2.0, true));
-        return new PortfolioState(new ArrayList<>(holdings), base, new ArrayList<>(List.of(base, conservative)));
+        var accounts = new ArrayList<>(List.of(
+                new InvestmentAccount(UUID.randomUUID().toString(), "401k", "Retirement", 85000, 23000, 7.0),
+                new InvestmentAccount(UUID.randomUUID().toString(), "HSA", "Health savings", 12000, 4300, 6.0)
+        ));
+        return new PortfolioState(new ArrayList<>(holdings), base, new ArrayList<>(List.of(base, conservative)), accounts);
     }
 }

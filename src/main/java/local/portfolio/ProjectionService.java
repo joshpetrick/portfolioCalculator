@@ -18,6 +18,9 @@ public class ProjectionService {
                 .map(h -> new HoldingRuntime(h, scenarioGrowthBump))
                 .toList();
         RsuRuntime rsus = new RsuRuntime(scenario.rsuSettings().normalized(), scenarioGrowthBump);
+        List<AccountRuntime> accounts = Optional.ofNullable(state.accounts()).orElse(List.of()).stream()
+                .map(a -> new AccountRuntime(a, scenarioGrowthBump))
+                .toList();
         List<ProjectionPoint> points = new ArrayList<>();
         double totalContributions = 0, totalDividends = 0;
         double startingValue = holdings.stream().mapToDouble(HoldingRuntime::value).sum();
@@ -52,9 +55,15 @@ public class ProjectionService {
                 if (month % 12 == 0) rsus.shares += rsus.price > 0 ? scenario.rsuSettings().annualGrantValue() / rsus.price : 0;
             }
 
+            for (AccountRuntime account : accounts) {
+                account.value *= Math.pow(1 + account.growth / 100.0, 1.0 / 12.0);
+                account.value += account.annualContribution / 12.0;
+            }
+
             double portfolio = holdings.stream().mapToDouble(HoldingRuntime::value).sum();
             double shares = holdings.stream().mapToDouble(h -> h.shares).sum();
             double rsuValue = scenario.rsuSettings().includeInProjection() ? rsus.value() : 0;
+            double otherAccountsValue = accounts.stream().mapToDouble(AccountRuntime::value).sum();
             points.add(new ProjectionPoint(
                     month,
                     (int) Math.ceil(month / 12.0),
@@ -63,7 +72,8 @@ public class ProjectionService {
                     round(shares),
                     round(totalContributions),
                     round(rsuValue),
-                    round(portfolio + rsuValue),
+                    round(otherAccountsValue),
+                    round(portfolio + rsuValue + otherAccountsValue),
                     round(portfolio - startingValue - totalContributions)
             ));
         }
@@ -142,6 +152,20 @@ public class ProjectionService {
 
         double value() {
             return shares * price;
+        }
+    }
+
+    static class AccountRuntime {
+        double value, annualContribution, growth;
+
+        AccountRuntime(InvestmentAccount account, double scenarioGrowthBump) {
+            value = account.currentValue();
+            annualContribution = account.annualContribution();
+            growth = account.expectedAnnualGrowthPercent() + scenarioGrowthBump;
+        }
+
+        double value() {
+            return value;
         }
     }
 
